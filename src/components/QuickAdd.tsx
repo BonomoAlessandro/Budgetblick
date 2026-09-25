@@ -5,6 +5,7 @@ import { topCategories } from '../lib/expenses';
 import { parseAmount } from '../lib/money';
 import type { Category, Expense } from '../types';
 import { Field } from './fields';
+import { Icon } from './Icon';
 import { inputClass } from './styles';
 
 export type NewExpense = Omit<Expense, 'id'>;
@@ -54,7 +55,8 @@ export function QuickAdd({ onSave, onScan, onCodeScan }: QuickAddProps) {
   const [merchant, setMerchant] = useState('');
   const [note, setNote] = useState('');
 
-  // Das Betragsfeld wird sofort gerendert (Fokus beim Öffnen), die Kategorien sobald geladen.
+  // Das Betragsfeld wird sofort gerendert, die Kategorien sobald geladen. Bewusst ohne
+  // Autofokus: Auf dem Handy würde sonst die Tastatur die Scan-Knöpfe verdecken.
   const top = categories && recent ? topCategories(recent, categories, 6) : [];
   const rest = (categories ?? []).filter((c) => !top.includes(c));
 
@@ -91,7 +93,6 @@ export function QuickAdd({ onSave, onScan, onCodeScan }: QuickAddProps) {
           <input
             ref={amountRef}
             id="quick-amount"
-            data-autofocus
             inputMode="decimal"
             enterKeyHint="done"
             autoComplete="off"
@@ -141,7 +142,7 @@ export function QuickAdd({ onSave, onScan, onCodeScan }: QuickAddProps) {
         <label
           className={`${scanButtonClass} focus-within:outline-2 focus-within:outline-brand-600`}
         >
-          <span aria-hidden="true">📷</span>
+          <Icon name="camera" className="size-6 shrink-0" />
           Quittung scannen
           <input
             type="file"
@@ -156,7 +157,7 @@ export function QuickAdd({ onSave, onScan, onCodeScan }: QuickAddProps) {
           />
         </label>
         <button type="button" className={scanButtonClass} onClick={onCodeScan}>
-          <span aria-hidden="true">🏷️</span>
+          <Icon name="barcode" className="size-6 shrink-0" />
           Barcode scannen
         </button>
       </div>

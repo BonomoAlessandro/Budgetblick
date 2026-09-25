@@ -8,14 +8,15 @@ import { renderApp, resetDb } from '../test/utils';
 beforeEach(resetDb);
 
 describe('Schnellerfassung', () => {
-  it('speichert mit einem Tipp auf die Kategorie und fokussiert den Betrag', async () => {
+  it('speichert mit einem Tipp auf die Kategorie, ohne den Betrag vorab zu fokussieren', async () => {
     const user = userEvent.setup();
     await renderApp('/');
     await user.click(screen.getByRole('button', { name: 'Ausgabe erfassen' }));
     const dialog = await screen.findByRole('dialog', { name: 'Ausgabe erfassen' });
 
     const amount = await within(dialog).findByLabelText('Betrag in CHF');
-    await waitFor(() => expect(amount).toHaveFocus());
+    // Kein Autofokus: Die Tastatur soll sich auf dem Handy nicht von selbst öffnen.
+    expect(amount).not.toHaveFocus();
     expect(amount).toHaveAttribute('inputmode', 'decimal');
 
     const group = within(dialog).getByRole('group', { name: 'Kategorie wählen und speichern' });
