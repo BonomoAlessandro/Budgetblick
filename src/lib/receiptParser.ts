@@ -36,7 +36,7 @@ const TOTAL_KEYWORDS = /\b(total(betrag)?|summe|zu bezahlen|zu zahlen)\b/;
 const CURRENCY_KEYWORD = /\bchf\b/;
 /** Zeilen mit diesen Begriffen enthalten nicht den zu bezahlenden Betrag. */
 const EXCLUDED =
-  /(zwischen|sub ?total|mwst|mehrwert|r[üu]ckgeld|retour|gegeben|rabatt|\bbar\b|punkte|cumulus|supercard)/;
+  /(zwischen|sub ?total|mwst|mehrwert|r[üu]ckgeld|retour|gegeben|rabatt|\bbar\b|punkte|cumulus|supercard|\beur\b|euro)/;
 
 /** Für den Abgleich: Kleinbuchstaben, typische OCR-Verwechslungen korrigiert. */
 function normalize(line: string): string {
@@ -61,6 +61,12 @@ export function extractAmounts(line: string): number[] {
   return result;
 }
 
+/** Steht ausser dem Schlüsselwort (und «CHF») kein weiterer Text in der Zeile? */
+function standsAlone(line: string): boolean {
+  const rest = line.replace(TOTAL_KEYWORDS, '').replace(CURRENCY_KEYWORD, '');
+  return (rest.match(/\p{L}/gu) ?? []).length <= 2;
+}
+
 function findAmount(lines: string[]): number | undefined {
   const normalized = lines.map(normalize);
 
@@ -71,6 +77,9 @@ function findAmount(lines: string[]): number | undefined {
     if (!TOTAL_KEYWORDS.test(line) || EXCLUDED.test(line)) continue;
     const amounts = extractAmounts(lines[i]!);
     if (amounts.length > 0) return Math.max(...amounts);
+    // Nur wenn „Total" (evtl. mit „CHF") allein steht – nicht bei Tabellenköpfen wie
+    // „Artikel Menge Preis Total", deren nächste Zeile der erste Artikel ist.
+    if (!standsAlone(line)) continue;
     const next = lines[i + 1];
     if (next && !EXCLUDED.test(normalize(next))) {
       const nextAmounts = extractAmounts(next);

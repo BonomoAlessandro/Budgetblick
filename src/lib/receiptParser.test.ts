@@ -116,6 +116,21 @@ describe('parseReceipt', () => {
     });
   });
 
+  it('nimmt bei einer Artikeltabelle nicht die Kopfzeile «… Total #» und ignoriert EUR', () => {
+    // OCR-Text eines echten Migros-Fotos (gekürzt)
+    const text = `Genossenschaft Migros Zürich
+MM Wollishofen
+Artikelbezeichnung Menge Preis Gespart Total #
+| Kellogg's Chocos 5809 1 5,70 5.20 1
+Beyond Burger 1 5,95 5.95 1
+Coca-Cola Vanilla 1 1.10 1.10 1
+Total CHF 23.25
+Visa 23.25
+Total in EUR 26.42`;
+    expect(parseReceipt(text, TODAY)).toMatchObject({ amount: 2325, merchant: 'Migros' });
+    expect(parseReceipt('Total in EUR 26.42\nVisa 23.25', TODAY).amount).toBeUndefined();
+  });
+
   it('erkennt Coop trotz OCR-Fehler „C00P" und nimmt „Summe"', () => {
     expect(parseReceipt(COOP, TODAY)).toEqual({
       amount: 830,

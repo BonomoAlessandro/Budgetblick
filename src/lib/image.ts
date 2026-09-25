@@ -34,6 +34,50 @@ export function toGrayscaleWithContrast(data: Uint8ClampedArray): void {
   }
 }
 
+/**
+ * Gleicht ungleichmässige Beleuchtung aus (Schatten, Lichtverlauf): Jeder Pixel wird
+ * durch die mittlere Helligkeit seiner Umgebung geteilt. Papier wird so überall hell,
+ * Schrift bleibt dunkel – auch im Schatten. Ohne diesen Schritt wählt Tesseract einen
+ * einzigen Schwellwert fürs ganze Bild, und Text im Schatten wird schwarz.
+ * Erwartet Graustufen-RGBA (R = G = B) und arbeitet direkt auf dem Array.
+ */
+export function normalizeIllumination(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  radius = Math.max(8, Math.round(Math.max(width, height) / 40)),
+): void {
+  // Integralbild: Summe aller Pixel oberhalb/links, für Fenstermittelwerte in O(1).
+  const stride = width + 1;
+  const integral = new Float64Array(stride * (height + 1));
+  for (let y = 0; y < height; y++) {
+    let rowSum = 0;
+    for (let x = 0; x < width; x++) {
+      rowSum += data[(y * width + x) * 4]!;
+      integral[(y + 1) * stride + x + 1] = integral[y * stride + x + 1]! + rowSum;
+    }
+  }
+  for (let y = 0; y < height; y++) {
+    const y0 = Math.max(0, y - radius);
+    const y1 = Math.min(height, y + radius + 1);
+    for (let x = 0; x < width; x++) {
+      const x0 = Math.max(0, x - radius);
+      const x1 = Math.min(width, x + radius + 1);
+      const sum =
+        integral[y1 * stride + x1]! -
+        integral[y0 * stride + x1]! -
+        integral[y1 * stride + x0]! +
+        integral[y0 * stride + x0]!;
+      const mean = sum / ((x1 - x0) * (y1 - y0));
+      const i = (y * width + x) * 4;
+      const value = mean > 0 ? Math.min(255, Math.round((data[i]! / mean) * 255)) : 255;
+      data[i] = value;
+      data[i + 1] = value;
+      data[i + 2] = value;
+    }
+  }
+}
+
 export interface PreparedReceipt {
   /** Graustufen-PNG für die Texterkennung */
   ocrImage: Blob;
@@ -51,7 +95,11 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number)
   );
 }
 
-function drawGrayscale(bitmap: ImageBitmap, maxEdge: number): HTMLCanvasElement {
+function drawGrayscale(
+  bitmap: ImageBitmap,
+  maxEdge: number,
+  { evenLighting = false } = {},
+): HTMLCanvasElement {
   const { width, height } = fitWithin(bitmap.width, bitmap.height, maxEdge);
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -61,6 +109,7 @@ function drawGrayscale(bitmap: ImageBitmap, maxEdge: number): HTMLCanvasElement 
   ctx.drawImage(bitmap, 0, 0, width, height);
   const imageData = ctx.getImageData(0, 0, width, height);
   toGrayscaleWithContrast(imageData.data);
+  if (evenLighting) normalizeIllumination(imageData.data, width, height);
   ctx.putImageData(imageData, 0, 0);
   return canvas;
 }
@@ -69,7 +118,7 @@ function drawGrayscale(bitmap: ImageBitmap, maxEdge: number): HTMLCanvasElement 
 export async function prepareReceipt(file: Blob): Promise<PreparedReceipt> {
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
   try {
-    const ocrCanvas = drawGrayscale(bitmap, OCR_MAX_EDGE);
+    const ocrCanvas = drawGrayscale(bitmap, OCR_MAX_EDGE, { evenLighting: true });
     const storedCanvas = drawGrayscale(bitmap, STORED_MAX_EDGE);
     const [ocrImage, storedImage] = await Promise.all([
       canvasToBlob(ocrCanvas, 'image/png'),
