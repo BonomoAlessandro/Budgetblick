@@ -2,6 +2,7 @@ import { endOfMonth, startOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { BudgetCard } from '../components/BudgetCard';
 import { DeadlinesCard } from '../components/DeadlinesCard';
+import { HealthInsuranceHint } from '../components/HealthInsuranceHint';
 import { Icon } from '../components/Icon';
 import { PageHeader } from '../components/PageHeader';
 import { RecentExpensesCard } from '../components/RecentExpensesCard';
@@ -12,11 +13,14 @@ import {
   useIncomes,
   useRecentExpenses,
   useRecurringExpenses,
+  useSetting,
 } from '../db/hooks';
+import { setSetting } from '../db/repo';
 import { computeBudget, upcomingPayments } from '../lib/budget';
 import { contractTimeline, needsAttention } from '../lib/contracts';
 import { formatMonth, toISODate, todayISO } from '../lib/date';
 import { latestExpenses } from '../lib/expenses';
+import { SETTING_HEALTH_HINT_DISMISSED_YEAR, showHealthInsuranceHint } from '../lib/swissHints';
 
 export function DashboardPage() {
   const now = new Date();
@@ -27,6 +31,10 @@ export function DashboardPage() {
   // Etwas mehr laden, damit gleiche Tage korrekt nach Erfassungszeit sortiert werden.
   const recent = useRecentExpenses(20);
   const categoryMap = useCategoryMap();
+  const hintDismissedYear = useSetting<number | undefined>(
+    SETTING_HEALTH_HINT_DISMISSED_YEAR,
+    undefined,
+  );
 
   const loaded = incomes && recurring && expenses && recent;
   const deadlines = recurring
@@ -49,6 +57,13 @@ export function DashboardPage() {
       />
       {loaded && (
         <div className="space-y-4">
+          {showHealthInsuranceHint(today, recurring, hintDismissedYear) && (
+            <HealthInsuranceHint
+              onDismiss={() =>
+                void setSetting(SETTING_HEALTH_HINT_DISMISSED_YEAR, now.getFullYear())
+              }
+            />
+          )}
           <BudgetCard
             summary={computeBudget({ incomes, recurring, expenses, month: now })}
             monthLabel={formatMonth(now)}

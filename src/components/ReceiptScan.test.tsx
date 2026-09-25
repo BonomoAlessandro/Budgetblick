@@ -30,7 +30,7 @@ const photo = new File(['foto'], 'quittung.jpg', { type: 'image/jpeg' });
 
 async function openScan() {
   const user = userEvent.setup();
-  renderApp('/');
+  await renderApp('/');
   await user.click(screen.getByRole('button', { name: 'Ausgabe erfassen' }));
   const dialog = await screen.findByRole('dialog', { name: 'Ausgabe erfassen' });
   const input = within(dialog).getByLabelText(/Quittung scannen/);

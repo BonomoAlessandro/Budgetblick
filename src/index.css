@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* Dunkelmodus über die Klasse .dark auf <html> (Hell/Dunkel/System in den Einstellungen). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-brand-50: #f0fdfa;
   --color-brand-100: #ccfbf1;
@@ -12,6 +15,11 @@
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 
   body {

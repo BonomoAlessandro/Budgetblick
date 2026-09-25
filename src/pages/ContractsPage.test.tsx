@@ -44,7 +44,7 @@ function withContract(
 describe('Vertragsdetails im Fixkosten-Formular', () => {
   it('erfasst einen Vertrag mit Live-Vorschau der Frist', async () => {
     const user = userEvent.setup();
-    renderApp('/fixkosten');
+    await renderApp('/fixkosten');
     const section = screen.getByRole('region', { name: 'Wiederkehrende Kosten' });
     await user.click(within(section).getByRole('button', { name: 'Hinzufügen' }));
     const dialog = await screen.findByRole('dialog', { name: 'Fixkosten erfassen' });
@@ -79,7 +79,7 @@ describe('Vertragsdetails im Fixkosten-Formular', () => {
   it('verwendet die Standard-Vorlaufzeit aus den Einstellungen', async () => {
     await db.settings.put({ key: 'reminderLeadDays', value: 30 });
     const user = userEvent.setup();
-    renderApp('/fixkosten');
+    await renderApp('/fixkosten');
     const section = screen.getByRole('region', { name: 'Wiederkehrende Kosten' });
     await user.click(within(section).getByRole('button', { name: 'Hinzufügen' }));
     const dialog = await screen.findByRole('dialog', { name: 'Fixkosten erfassen' });
@@ -89,7 +89,7 @@ describe('Vertragsdetails im Fixkosten-Formular', () => {
 
   it('meldet ungültige Vertragsangaben', async () => {
     const user = userEvent.setup();
-    renderApp('/fixkosten');
+    await renderApp('/fixkosten');
     const section = screen.getByRole('region', { name: 'Wiederkehrende Kosten' });
     await user.click(within(section).getByRole('button', { name: 'Hinzufügen' }));
     const dialog = await screen.findByRole('dialog', { name: 'Fixkosten erfassen' });
@@ -123,7 +123,7 @@ describe('Verträge-Ansicht', () => {
   });
 
   it('zeigt die Zeitleiste sortiert nach Kündigungstermin mit Status', async () => {
-    renderApp('/vertraege');
+    await renderApp('/vertraege');
     const timeline = await screen.findByRole('list', { name: 'Zeitleiste nach Kündigungstermin' });
     const cards = within(timeline).getAllByRole('article');
     expect(cards.map((c) => c.getAttribute('aria-label'))).toEqual([
@@ -142,7 +142,7 @@ describe('Verträge-Ansicht', () => {
 
   it('markiert einen Vertrag als gekündigt und nimmt die Kündigung zurück', async () => {
     const user = userEvent.setup();
-    renderApp('/vertraege');
+    await renderApp('/vertraege');
     const card = await screen.findByRole('article', { name: 'Handy-Abo' });
     await user.click(within(card).getByRole('button', { name: 'Als gekündigt markieren' }));
     await user.click(within(card).getByRole('button', { name: 'Heute gekündigt' }));
@@ -170,7 +170,7 @@ describe('Verträge-Ansicht', () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
     const user = userEvent.setup();
-    renderApp('/vertraege');
+    await renderApp('/vertraege');
     const card = await screen.findByRole('article', { name: 'Handy-Abo' });
     await user.click(within(card).getByRole('button', { name: /Erinnerung in Kalender/ }));
 
@@ -193,7 +193,7 @@ describe('Dashboard-Karte Fristen', () => {
       withContract('verpasst', 'Zeitung', '2024-11-01'),
       withContract('gekuendigt', 'Fitness', '2025-01-01', { cancelledOn: '2026-09-01' }),
     ]);
-    renderApp('/');
+    await renderApp('/');
     const card = await screen.findByRole('region', { name: 'Fristen' });
     expect(
       within(card)
@@ -206,7 +206,7 @@ describe('Dashboard-Karte Fristen', () => {
 
   it('wird ohne Handlungsbedarf nicht angezeigt', async () => {
     await db.recurringExpenses.add(withContract('ok', 'Internet', '2025-06-01'));
-    renderApp('/');
+    await renderApp('/');
     await screen.findByRole('region', { name: 'Demnächst' });
     expect(screen.queryByRole('region', { name: 'Fristen' })).not.toBeInTheDocument();
   });
@@ -217,7 +217,7 @@ describe('Automatische Deaktivierung', () => {
     await db.recurringExpenses.add(
       withContract('alt', 'Altes Abo', '2023-01-01', { cancelledOn: '2025-01-15' }),
     );
-    renderApp('/');
+    await renderApp('/');
     await waitFor(async () => expect((await db.recurringExpenses.get('alt'))?.active).toBe(false));
   });
 });

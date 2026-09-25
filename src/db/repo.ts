@@ -1,4 +1,4 @@
-import type { Expense, Income, RecurringExpense } from '../types';
+import type { Category, Expense, Income, RecurringExpense } from '../types';
 import { db, newId } from './db';
 
 type WithOptionalId<T extends { id: string }> = Omit<T, 'id'> & { id?: string };
@@ -49,4 +49,28 @@ export async function setContractCancelled(id: string, cancelledOn: string | und
 
 export async function setSetting<T>(key: string, value: T): Promise<void> {
   await db.settings.put({ key, value });
+}
+
+export async function saveCategory(category: WithOptionalId<Category>): Promise<string> {
+  const id = category.id ?? newId();
+  await db.categories.put({ ...category, id });
+  return id;
+}
+
+/** Anzahl Fixkosten und Ausgaben, die eine Kategorie verwenden. */
+export async function categoryUsageCount(id: string): Promise<number> {
+  const [recurring, expenses] = await Promise.all([
+    db.recurringExpenses.where('categoryId').equals(id).count(),
+    db.expenses.where('categoryId').equals(id).count(),
+  ]);
+  return recurring + expenses;
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  await db.transaction('rw', [db.categories, db.recurringExpenses, db.expenses], async () => {
+    if ((await categoryUsageCount(id)) > 0) {
+      throw new Error('Kategorie wird noch verwendet.');
+    }
+    await db.categories.delete(id);
+  });
 }

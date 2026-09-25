@@ -9,7 +9,7 @@ beforeEach(resetDb);
 describe('Fixkosten-Bildschirm', () => {
   it('erfasst Einkommen und zeigt es im Monatstotal', async () => {
     const user = userEvent.setup();
-    renderApp('/fixkosten');
+    await renderApp('/fixkosten');
 
     const incomeSection = screen.getByRole('region', { name: 'Einkommen' });
     await user.click(within(incomeSection).getByRole('button', { name: 'Hinzufügen' }));
@@ -25,7 +25,7 @@ describe('Fixkosten-Bildschirm', () => {
 
   it('validiert Pflichtfelder', async () => {
     const user = userEvent.setup();
-    renderApp('/fixkosten');
+    await renderApp('/fixkosten');
     const section = screen.getByRole('region', { name: 'Wiederkehrende Kosten' });
     await user.click(within(section).getByRole('button', { name: 'Hinzufügen' }));
     const dialog = await screen.findByRole('dialog', { name: 'Fixkosten erfassen' });
@@ -39,7 +39,7 @@ describe('Fixkosten-Bildschirm', () => {
 
   it('erfasst, bearbeitet und löscht Fixkosten und aktualisiert die Summen', async () => {
     const user = userEvent.setup();
-    renderApp('/fixkosten');
+    await renderApp('/fixkosten');
     const section = screen.getByRole('region', { name: 'Wiederkehrende Kosten' });
 
     // Erfassen: jährliche Serafe-Gebühr
@@ -79,7 +79,7 @@ describe('Fixkosten-Bildschirm', () => {
 
 describe('Dashboard', () => {
   it('zeigt einen Hinweis ohne Einkommen', async () => {
-    renderApp('/');
+    await renderApp('/');
     expect(await screen.findByRole('link', { name: 'Einkommen erfassen' })).toBeInTheDocument();
   });
 
@@ -106,7 +106,7 @@ describe('Dashboard', () => {
         active: false,
       },
     ]);
-    renderApp('/');
+    await renderApp('/');
 
     expect(await screen.findByTestId('free-budget')).toHaveTextContent("CHF 4'000.00");
     const upcoming = screen.getByRole('region', { name: 'Demnächst' });

@@ -10,7 +10,7 @@ beforeEach(resetDb);
 describe('Schnellerfassung', () => {
   it('speichert mit einem Tipp auf die Kategorie und fokussiert den Betrag', async () => {
     const user = userEvent.setup();
-    renderApp('/');
+    await renderApp('/');
     await user.click(screen.getByRole('button', { name: 'Ausgabe erfassen' }));
     const dialog = await screen.findByRole('dialog', { name: 'Ausgabe erfassen' });
 
@@ -41,7 +41,7 @@ describe('Schnellerfassung', () => {
 
   it('verlangt zuerst einen Betrag', async () => {
     const user = userEvent.setup();
-    renderApp('/');
+    await renderApp('/');
     await user.click(screen.getByRole('button', { name: 'Ausgabe erfassen' }));
     const dialog = await screen.findByRole('dialog', { name: 'Ausgabe erfassen' });
     await user.click(await within(dialog).findByRole('button', { name: /Freizeit/ }));
@@ -51,7 +51,7 @@ describe('Schnellerfassung', () => {
 
   it('übernimmt optionale Angaben und weitere Kategorien', async () => {
     const user = userEvent.setup();
-    renderApp('/');
+    await renderApp('/');
     await user.click(screen.getByRole('button', { name: 'Ausgabe erfassen' }));
     const dialog = await screen.findByRole('dialog', { name: 'Ausgabe erfassen' });
     await user.type(await within(dialog).findByLabelText('Betrag in CHF'), '30');
@@ -74,7 +74,7 @@ describe('Schnellerfassung', () => {
 
   it('macht das Speichern rückgängig', async () => {
     const user = userEvent.setup();
-    renderApp('/');
+    await renderApp('/');
     await user.click(screen.getByRole('button', { name: 'Ausgabe erfassen' }));
     const dialog = await screen.findByRole('dialog', { name: 'Ausgabe erfassen' });
     await user.type(await within(dialog).findByLabelText('Betrag in CHF'), '5');
@@ -84,7 +84,7 @@ describe('Schnellerfassung', () => {
   });
 
   it('öffnet sich über den App-Shortcut-Parameter', async () => {
-    renderApp('/?erfassen');
+    await renderApp('/?erfassen');
     expect(await screen.findByRole('dialog', { name: 'Ausgabe erfassen' })).toBeVisible();
   });
 
@@ -99,7 +99,7 @@ describe('Schnellerfassung', () => {
       })),
     );
     const user = userEvent.setup();
-    renderApp('/');
+    await renderApp('/');
     await user.click(screen.getByRole('button', { name: 'Ausgabe erfassen' }));
     const group = await screen.findByRole('group', { name: 'Kategorie wählen und speichern' });
     await waitFor(() =>
@@ -141,7 +141,7 @@ describe('Ausgaben-Bildschirm', () => {
   });
 
   it('zeigt Monatsübersicht mit Legende und nach Tag gruppierte Liste', async () => {
-    renderApp('/ausgaben');
+    await renderApp('/ausgaben');
     const chart = await screen.findByRole('region', { name: 'Nach Kategorie' });
     const legend = await within(chart).findByRole('list', { name: 'Legende' });
     expect(
@@ -158,7 +158,7 @@ describe('Ausgaben-Bildschirm', () => {
 
   it('filtert nach Kategorie über Auswahl und Legende', async () => {
     const user = userEvent.setup();
-    renderApp('/ausgaben');
+    await renderApp('/ausgaben');
     await screen.findByText('Migros');
     await user.selectOptions(screen.getByLabelText('Kategorie'), 'var-restaurant');
     expect(screen.queryByText('Migros')).not.toBeInTheDocument();
@@ -173,7 +173,7 @@ describe('Ausgaben-Bildschirm', () => {
 
   it('wechselt den Monat', async () => {
     const user = userEvent.setup();
-    renderApp('/ausgaben');
+    await renderApp('/ausgaben');
     await screen.findByText('Migros');
     expect(screen.getByRole('button', { name: 'Nächster Monat' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Vorheriger Monat' }));
@@ -182,7 +182,7 @@ describe('Ausgaben-Bildschirm', () => {
 
   it('bearbeitet und löscht eine Ausgabe', async () => {
     const user = userEvent.setup();
-    renderApp('/ausgaben');
+    await renderApp('/ausgaben');
     await user.click(await screen.findByRole('button', { name: /Migros/ }));
     let dialog = await screen.findByRole('dialog', { name: 'Ausgabe bearbeiten' });
     const amount = within(dialog).getByLabelText('Betrag (CHF)');

@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { resetDb } from './test/utils';
 import App from './App';
 
 function renderAt(path: string) {
@@ -12,10 +13,12 @@ function renderAt(path: string) {
   );
 }
 
+beforeEach(() => resetDb());
+
 describe('Navigation', () => {
-  it('zeigt die vier Tabs und den Erfassen-Button', () => {
+  it('zeigt die vier Tabs und den Erfassen-Button', async () => {
     renderAt('/');
-    const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
+    const nav = await screen.findByRole('navigation', { name: 'Hauptnavigation' });
     for (const label of ['Übersicht', 'Fixkosten', 'Verträge', 'Ausgaben']) {
       expect(nav).toHaveTextContent(label);
     }
@@ -25,7 +28,7 @@ describe('Navigation', () => {
   it('wechselt per Tab zwischen den Bildschirmen', async () => {
     const user = userEvent.setup();
     renderAt('/');
-    await user.click(screen.getByRole('link', { name: 'Fixkosten' }));
+    await user.click(await screen.findByRole('link', { name: 'Fixkosten' }));
     expect(screen.getByRole('heading', { level: 1, name: 'Fixkosten' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Fixkosten' })).toHaveAttribute('aria-current', 'page');
 
@@ -36,7 +39,7 @@ describe('Navigation', () => {
   it('öffnet die Einstellungen über das Zahnrad und zeigt die Kategorien', async () => {
     const user = userEvent.setup();
     renderAt('/');
-    await user.click(screen.getByRole('link', { name: 'Einstellungen' }));
+    await user.click(await screen.findByRole('link', { name: 'Einstellungen' }));
     expect(screen.getByRole('heading', { level: 1, name: 'Einstellungen' })).toBeInTheDocument();
     expect(await screen.findByText('Lebensmittel')).toBeInTheDocument();
     expect(screen.getByText('Krankenkasse')).toBeInTheDocument();
