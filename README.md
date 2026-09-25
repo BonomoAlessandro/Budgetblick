@@ -26,6 +26,14 @@ npm run build      # Typprüfung und Produktions-Build nach dist/
 npm run preview    # Produktions-Build lokal ausliefern
 ```
 
+## Texterkennung (Quittungsscan)
+
+Die Quittungserkennung nutzt Tesseract.js mit deutschem Sprachpaket und läuft vollständig im
+Browser. Worker, WASM-Core und Sprachdaten werden **nicht** von einem CDN geladen, sondern von der
+eigenen Domain ausgeliefert. `npm run dev` und `npm run build` kopieren sie automatisch aus
+`node_modules` nach `public/tesseract/` (gitignored, ca. 13 MB; der Browser lädt davon ca. 5 MB
+beim ersten Scan). Manuell: `npm run copy:tesseract`.
+
 ## Projektstruktur
 
 ```

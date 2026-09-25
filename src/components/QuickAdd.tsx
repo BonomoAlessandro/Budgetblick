@@ -11,6 +11,8 @@ export type NewExpense = Omit<Expense, 'id'>;
 
 interface QuickAddProps {
   onSave: (expense: NewExpense, category: Category) => void;
+  /** Foto einer Quittung wurde gewählt */
+  onScan: (file: File) => void;
 }
 
 /** Anzahl Ausgaben, die für die Häufigkeit der Kategorien berücksichtigt werden. */
@@ -35,7 +37,7 @@ function CategoryButton({ category, onClick }: { category: Category; onClick: ()
  * Schnellerfassung: Betrag eintippen, Kategorie antippen – gespeichert.
  * Datum, Händler und Notiz sind optional aufklappbar.
  */
-export function QuickAdd({ onSave }: QuickAddProps) {
+export function QuickAdd({ onSave, onScan }: QuickAddProps) {
   const categories = useCategories('variable');
   const recent = useRecentExpenses(USAGE_SAMPLE);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -129,6 +131,22 @@ export function QuickAdd({ onSave }: QuickAddProps) {
           </button>
         )}
       </div>
+
+      <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 font-medium text-slate-700 hover:bg-slate-50 focus-within:outline-2 focus-within:outline-brand-600 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
+        <span aria-hidden="true">📷</span>
+        Quittung scannen
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="sr-only"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (file) onScan(file);
+          }}
+        />
+      </label>
 
       <details className="group rounded-xl border border-slate-200 dark:border-slate-700">
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-3 font-medium">

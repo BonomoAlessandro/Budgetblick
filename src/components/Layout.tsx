@@ -4,6 +4,7 @@ import { deleteExpense, saveExpense } from '../db/repo';
 import { formatCHF } from '../lib/money';
 import { BottomSheet } from './BottomSheet';
 import { QuickAdd } from './QuickAdd';
+import { ReceiptScan } from './ReceiptScan';
 import { TabBar } from './TabBar';
 import { Toast, type ToastMessage } from './Toast';
 
@@ -14,8 +15,22 @@ export function Layout() {
   const [searchParams, setSearchParams] = useSearchParams();
   // Der App-Shortcut startet die App mit ?erfassen: Schnellerfassung direkt öffnen.
   const [quickAddOpen, setQuickAddOpen] = useState(() => searchParams.has(QUICK_ADD_PARAM));
+  const [scanFile, setScanFile] = useState<File | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const dismissToast = useCallback(() => setToast(null), []);
+
+  const closeSheet = useCallback(() => {
+    setQuickAddOpen(false);
+    setScanFile(null);
+  }, []);
+
+  const showSaved = (text: string, id: string) =>
+    setToast({
+      id: Date.now(),
+      text,
+      actionLabel: 'Rückgängig',
+      onAction: () => void deleteExpense(id),
+    });
 
   useEffect(() => {
     // Parameter danach entfernen, damit ein Neuladen das Sheet nicht erneut öffnet.
@@ -33,21 +48,29 @@ export function Layout() {
       <TabBar onQuickAdd={() => setQuickAddOpen(true)} />
       <BottomSheet
         open={quickAddOpen}
-        title="Ausgabe erfassen"
-        onClose={() => setQuickAddOpen(false)}
+        title={scanFile ? 'Quittung prüfen' : 'Ausgabe erfassen'}
+        onClose={closeSheet}
       >
-        <QuickAdd
-          onSave={async (expense, category) => {
-            const id = await saveExpense(expense);
-            setQuickAddOpen(false);
-            setToast({
-              id: Date.now(),
-              text: `${formatCHF(expense.amount)} · ${category.name} gespeichert`,
-              actionLabel: 'Rückgängig',
-              onAction: () => void deleteExpense(id),
-            });
-          }}
-        />
+        {scanFile ? (
+          <ReceiptScan
+            file={scanFile}
+            onCancel={() => setScanFile(null)}
+            onSave={async (expense) => {
+              const id = await saveExpense(expense);
+              closeSheet();
+              showSaved(`${formatCHF(expense.amount)} gespeichert`, id);
+            }}
+          />
+        ) : (
+          <QuickAdd
+            onScan={setScanFile}
+            onSave={async (expense, category) => {
+              const id = await saveExpense(expense);
+              closeSheet();
+              showSaved(`${formatCHF(expense.amount)} · ${category.name} gespeichert`, id);
+            }}
+          />
+        )}
       </BottomSheet>
       <Toast toast={toast} onDismiss={dismissToast} />
     </div>
