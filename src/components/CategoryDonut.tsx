@@ -42,6 +42,9 @@ function SliceTooltip({
  * sichtbar, damit die Zuordnung nie allein über die Farbe erfolgt.
  */
 export function CategoryDonut({ slices, total, selectedId, onSelect }: CategoryDonutProps) {
+  // Alle Betragsspalten so breit wie der längste Betrag, damit Prozente und Beträge
+  // untereinander stehen (Ziffern sind dank tabular-nums gleich breit).
+  const amountWidth = `${Math.max(0, ...slices.map((s) => formatCHF(s.total).length))}ch`;
   return (
     <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
       <figure className="relative shrink-0" aria-label="Ausgaben nach Kategorie">
@@ -76,7 +79,8 @@ export function CategoryDonut({ slices, total, selectedId, onSelect }: CategoryD
         </figcaption>
       </figure>
 
-      <ul className="w-full space-y-0.5" aria-label="Legende">
+      {/* Neben dem Diagramm nur den Restplatz nehmen (w-full würde über die Karte hinausragen). */}
+      <ul className="w-full min-w-0 space-y-0.5 sm:w-auto sm:flex-1" aria-label="Legende">
         {slices.map((s) => {
           const selected = selectedId === s.id;
           const row = (
@@ -86,12 +90,20 @@ export function CategoryDonut({ slices, total, selectedId, onSelect }: CategoryD
                 className="size-3 shrink-0 rounded-full"
                 style={{ backgroundColor: s.color }}
               />
-              <span aria-hidden="true">{s.icon}</span>
-              <span className="min-w-0 flex-1 truncate">{s.name}</span>
-              <span className="whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
+              <span aria-hidden="true" className="shrink-0">
+                {s.icon}
+              </span>
+              <span className="min-w-0 flex-1 truncate" title={s.name}>
+                {s.name}
+              </span>
+              <span className="shrink-0 whitespace-nowrap text-sm tabular-nums text-slate-500 dark:text-slate-400">
                 {formatShare(s.share)}
               </span>
-              <span className="w-24 whitespace-nowrap text-right font-medium">
+              {/* Breite nach Inhalt statt fest: Grosse Beträge passen, gekürzt wird nur der Name. */}
+              <span
+                className="shrink-0 whitespace-nowrap text-right font-medium tabular-nums"
+                style={{ minWidth: amountWidth }}
+              >
                 {formatCHF(s.total)}
               </span>
             </>
