@@ -1,8 +1,17 @@
-import type { Category, Expense, Income, Interval, RecurringExpense, Setting } from '../types';
+import type {
+  Category,
+  Expense,
+  Income,
+  Interval,
+  Product,
+  RecurringExpense,
+  Setting,
+} from '../types';
 import { INTERVALS } from './interval';
 
 export const BACKUP_FORMAT = 'budgetblick-backup';
-export const BACKUP_VERSION = 1;
+/** 2: gemerkte Barcode-Produkte (`products`); Version-1-Dateien bleiben lesbar. */
+export const BACKUP_VERSION = 2;
 
 /** Ausgabe im Export: Quittungsbild als Data-URL statt Blob. */
 export type ExportedExpense = Omit<Expense, 'receiptImage'> & { receiptImage?: string };
@@ -13,6 +22,7 @@ export interface BackupData {
   recurringExpenses: RecurringExpense[];
   expenses: ExportedExpense[];
   settings: Setting[];
+  products: Product[];
 }
 
 export interface BackupFile {
@@ -74,6 +84,9 @@ const optIsoDate: Check = (v, p) => {
 const rappen: Check = (v, p) => {
   if (!Number.isInteger(v) || (v as number) < 0) fail(p, 'ein Betrag in Rappen (ganze Zahl)');
 };
+const optRappen: Check = (v, p) => {
+  if (v !== undefined) rappen(v, p);
+};
 const count: Check = (v, p) => {
   if (!Number.isInteger(v) || (v as number) < 0) fail(p, 'eine ganze Zahl ≥ 0');
 };
@@ -134,7 +147,20 @@ const SHAPES: Record<keyof BackupData, Record<string, Check>> = {
     source: oneOf('manual', 'scan'),
   },
   settings: { key: str },
+  products: {
+    code: str,
+    name: optStr,
+    lastPrice: optRappen,
+    categoryId: optStr,
+    merchant: optStr,
+    updatedAt: count,
+  },
 };
+
+/** Schlüsselfeld je Tabelle (für die Prüfung auf doppelte Einträge). */
+const KEY_FIELD: Partial<Record<keyof BackupData, string>> = { settings: 'key', products: 'code' };
+/** Tabellen, die in älteren Sicherungen fehlen dürfen (dann leer). */
+const OPTIONAL_TABLES = new Set<keyof BackupData>(['products']);
 
 /** Prüft eine eingelesene Sicherungsdatei und liefert die Daten. */
 export function parseBackup(json: unknown): BackupData {
@@ -153,12 +179,13 @@ export function parseBackup(json: unknown): BackupData {
     keyof BackupData,
     Record<string, Check>,
   ][]) {
+    if (data[table] === undefined && OPTIONAL_TABLES.has(table)) data[table] = [];
     const rows = data[table];
     if (!Array.isArray(rows)) fail(`data.${table}`, 'eine Liste');
     const ids = new Set<unknown>();
     rows.forEach((row, i) => {
       checkShape(row, `${table}[${i}]`, shape);
-      const id = table === 'settings' ? (row as Setting).key : (row as { id: string }).id;
+      const id = (row as Record<string, unknown>)[KEY_FIELD[table] ?? 'id'];
       if (ids.has(id))
         throw new BackupError(`Ungültige Sicherung: ${table} enthält „${id}" doppelt.`);
       ids.add(id);

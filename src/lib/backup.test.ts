@@ -42,11 +42,21 @@ function validData(): BackupData {
       },
     ],
     settings: [{ key: 'reminderLeadDays', value: 21 }],
+    products: [
+      {
+        code: '9002490100070',
+        name: 'Red Bull',
+        lastPrice: 195,
+        categoryId: 'c',
+        merchant: 'Coop',
+        updatedAt: 1790000000000,
+      },
+    ],
   };
 }
 
 function file(data: unknown) {
-  return { format: BACKUP_FORMAT, version: 1, exportedAt: '2026-09-25T10:00:00.000Z', data };
+  return { format: BACKUP_FORMAT, version: 2, exportedAt: '2026-09-25T10:00:00.000Z', data };
 }
 
 describe('Blob ↔ Data-URL', () => {
@@ -73,6 +83,12 @@ describe('Blob ↔ Data-URL', () => {
 describe('parseBackup', () => {
   it('akzeptiert eine gültige Sicherung', () => {
     expect(parseBackup(file(validData()))).toEqual(validData());
+  });
+
+  it('liest ältere Sicherungen (Version 1) ohne Produkte', () => {
+    const data: Partial<BackupData> = validData();
+    delete data.products;
+    expect(parseBackup({ ...file(data), version: 1 }).products).toEqual([]);
   });
 
   it('erkennt fremde Dateien', () => {
@@ -108,6 +124,21 @@ describe('parseBackup', () => {
       'recurringExpenses[0].contract.noticePeriod.unit',
     ],
     ['doppelte ID', (d: BackupData) => d.categories.push({ ...d.categories[0]! }), 'doppelt'],
+    [
+      'Produktpreis als Kommazahl',
+      (d: BackupData) => (d.products[0]!.lastPrice = 1.95),
+      'products[0].lastPrice',
+    ],
+    [
+      'Produkt ohne Artikelnummer',
+      (d: BackupData) => (d.products[0]!.code = ''),
+      'products[0].code',
+    ],
+    [
+      'doppelte Artikelnummer',
+      (d: BackupData) => d.products.push({ ...d.products[0]! }),
+      '9002490100070',
+    ],
   ])('meldet %s', (_label, mutate, message) => {
     const data = validData();
     mutate(data);

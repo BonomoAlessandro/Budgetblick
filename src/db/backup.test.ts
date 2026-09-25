@@ -25,6 +25,13 @@ async function seed() {
     source: 'manual',
   });
   await db.settings.put({ key: 'reminderLeadDays', value: 21 });
+  await db.products.put({
+    code: '9002490100070',
+    name: 'Red Bull',
+    lastPrice: 195,
+    categoryId: 'var-lebensmittel',
+    updatedAt: 1790000000000,
+  });
 }
 
 describe('Sicherung', () => {
@@ -47,6 +54,11 @@ describe('Sicherung', () => {
       value: 21,
     });
     expect(await db.categories.count()).toBe(14);
+    expect(backup.data.products).toHaveLength(1);
+    expect(await db.products.get('9002490100070')).toMatchObject({
+      name: 'Red Bull',
+      lastPrice: 195,
+    });
   });
 
   it('lässt die Daten bei einer ungültigen Datei unverändert', async () => {

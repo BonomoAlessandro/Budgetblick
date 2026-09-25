@@ -11,17 +11,26 @@ import type { Expense } from '../types';
 import { db } from './db';
 import { DEFAULT_CATEGORIES } from './defaultCategories';
 
-const TABLES = () => [db.categories, db.incomes, db.recurringExpenses, db.expenses, db.settings];
+const TABLES = () => [
+  db.categories,
+  db.incomes,
+  db.recurringExpenses,
+  db.expenses,
+  db.settings,
+  db.products,
+];
 
 /** Alle Daten als Sicherungsobjekt (Quittungsbilder als Data-URL). */
 export async function createBackup(now: Date = new Date()): Promise<BackupFile> {
-  const [categories, incomes, recurringExpenses, rawExpenses, settings] = await Promise.all([
-    db.categories.toArray(),
-    db.incomes.toArray(),
-    db.recurringExpenses.toArray(),
-    db.expenses.toArray(),
-    db.settings.toArray(),
-  ]);
+  const [categories, incomes, recurringExpenses, rawExpenses, settings, products] =
+    await Promise.all([
+      db.categories.toArray(),
+      db.incomes.toArray(),
+      db.recurringExpenses.toArray(),
+      db.expenses.toArray(),
+      db.settings.toArray(),
+      db.products.toArray(),
+    ]);
   const expenses: ExportedExpense[] = await Promise.all(
     rawExpenses.map(async ({ receiptImage, ...rest }) =>
       receiptImage instanceof Blob
@@ -33,7 +42,7 @@ export async function createBackup(now: Date = new Date()): Promise<BackupFile> 
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     exportedAt: now.toISOString(),
-    data: { categories, incomes, recurringExpenses, expenses, settings },
+    data: { categories, incomes, recurringExpenses, expenses, settings, products },
   };
 }
 
@@ -53,14 +62,14 @@ export async function restoreBackup(json: unknown): Promise<void> {
     await db.recurringExpenses.bulkAdd(data.recurringExpenses);
     await db.expenses.bulkAdd(expenses);
     await db.settings.bulkAdd(data.settings);
+    await db.products.bulkAdd(data.products);
   });
 }
 
 /** Löscht alle Daten und legt die Standardkategorien neu an. */
 export async function deleteAllData(): Promise<void> {
-  // Gemerkte Produkte sind nicht Teil der Sicherung, werden hier aber mitgelöscht.
-  await db.transaction('rw', [...TABLES(), db.products], async () => {
-    await Promise.all([...TABLES(), db.products].map((t) => t.clear()));
+  await db.transaction('rw', TABLES(), async () => {
+    await Promise.all(TABLES().map((t) => t.clear()));
     await db.categories.bulkAdd(DEFAULT_CATEGORIES);
   });
 }
