@@ -1,4 +1,4 @@
-import { format, isValid, parseISO } from 'date-fns';
+import { addDays, format, isValid, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 /** Date → ISO-Datum `YYYY-MM-DD` (lokale Zeitzone). */
@@ -20,6 +20,13 @@ export function fromISODate(iso: string): Date {
 export function formatDate(iso: string): string {
   const d = parseISO(iso);
   return isValid(d) ? format(d, 'dd.MM.yyyy') : '';
+}
+
+/** „Heute", „Morgen" oder TT.MM.JJJJ. */
+export function formatRelativeDay(iso: string, todayIso: string): string {
+  if (iso === todayIso) return 'Heute';
+  if (iso === toISODate(addDays(parseISO(todayIso), 1))) return 'Morgen';
+  return formatDate(iso);
 }
 
 /** Formatiert ein ISO-Datum lang, z. B. "Freitag, 25. September". */

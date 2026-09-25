@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatDateLong, formatMonth, fromISODate, todayISO } from './date';
+import {
+  formatDate,
+  formatDateLong,
+  formatMonth,
+  formatRelativeDay,
+  fromISODate,
+  todayISO,
+} from './date';
 
 describe('date helpers', () => {
   it('formatiert ISO-Daten als TT.MM.JJJJ', () => {
@@ -25,5 +32,14 @@ describe('date helpers', () => {
   it('verwendet deutsche Monats- und Wochentagsnamen', () => {
     expect(formatMonth(new Date(2026, 2, 1))).toBe('März 2026');
     expect(formatDateLong('2026-09-25')).toBe('Freitag, 25. September');
+  });
+});
+
+describe('formatRelativeDay', () => {
+  it('zeigt Heute, Morgen oder das Datum', () => {
+    expect(formatRelativeDay('2026-09-25', '2026-09-25')).toBe('Heute');
+    expect(formatRelativeDay('2026-09-26', '2026-09-25')).toBe('Morgen');
+    expect(formatRelativeDay('2026-10-01', '2026-09-30')).toBe('Morgen');
+    expect(formatRelativeDay('2026-09-27', '2026-09-25')).toBe('27.09.2026');
   });
 });

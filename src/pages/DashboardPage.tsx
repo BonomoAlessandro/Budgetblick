@@ -1,10 +1,23 @@
+import { endOfMonth, startOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
-import { Card } from '../components/Card';
+import { BudgetCard } from '../components/BudgetCard';
 import { Icon } from '../components/Icon';
 import { PageHeader } from '../components/PageHeader';
-import { formatMonth } from '../lib/date';
+import { UpcomingCard } from '../components/UpcomingCard';
+import { useCategoryMap, useExpensesBetween, useIncomes, useRecurringExpenses } from '../db/hooks';
+import { computeBudget, upcomingPayments } from '../lib/budget';
+import { formatMonth, toISODate, todayISO } from '../lib/date';
 
 export function DashboardPage() {
+  const now = new Date();
+  const today = todayISO(now);
+  const incomes = useIncomes();
+  const recurring = useRecurringExpenses();
+  const expenses = useExpensesBetween(toISODate(startOfMonth(now)), toISODate(endOfMonth(now)));
+  const categoryMap = useCategoryMap();
+
+  const loaded = incomes && recurring && expenses;
+
   return (
     <>
       <PageHeader
@@ -19,13 +32,19 @@ export function DashboardPage() {
           </Link>
         }
       />
-      <div className="space-y-4">
-        <Card title={`Frei verfügbar · ${formatMonth(new Date())}`}>
-          <p className="text-slate-500 dark:text-slate-400">
-            Erfasse Einkommen und Fixkosten, um dein freies Budget zu sehen.
-          </p>
-        </Card>
-      </div>
+      {loaded && (
+        <div className="space-y-4">
+          <BudgetCard
+            summary={computeBudget({ incomes, recurring, expenses, month: now })}
+            monthLabel={formatMonth(now)}
+          />
+          <UpcomingCard
+            payments={upcomingPayments(recurring, today, 5)}
+            categoryMap={categoryMap}
+            today={today}
+          />
+        </div>
+      )}
     </>
   );
 }
