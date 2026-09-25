@@ -1,10 +1,29 @@
-import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
-import { TabBar } from './TabBar';
+import { useCallback, useEffect, useState } from 'react';
+import { Outlet, useSearchParams } from 'react-router-dom';
+import { deleteExpense, saveExpense } from '../db/repo';
+import { formatCHF } from '../lib/money';
 import { BottomSheet } from './BottomSheet';
+import { QuickAdd } from './QuickAdd';
+import { TabBar } from './TabBar';
+import { Toast, type ToastMessage } from './Toast';
+
+/** URL-Parameter, der die Schnellerfassung direkt öffnet (PWA-App-Shortcut). */
+export const QUICK_ADD_PARAM = 'erfassen';
 
 export function Layout() {
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Der App-Shortcut startet die App mit ?erfassen: Schnellerfassung direkt öffnen.
+  const [quickAddOpen, setQuickAddOpen] = useState(() => searchParams.has(QUICK_ADD_PARAM));
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  const dismissToast = useCallback(() => setToast(null), []);
+
+  useEffect(() => {
+    // Parameter danach entfernen, damit ein Neuladen das Sheet nicht erneut öffnet.
+    if (!searchParams.has(QUICK_ADD_PARAM)) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete(QUICK_ADD_PARAM);
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   return (
     <div className="mx-auto min-h-dvh max-w-xl pb-[calc(5rem+env(safe-area-inset-bottom))]">
@@ -17,10 +36,20 @@ export function Layout() {
         title="Ausgabe erfassen"
         onClose={() => setQuickAddOpen(false)}
       >
-        <p className="py-6 text-center text-slate-500 dark:text-slate-400">
-          Die Schnellerfassung folgt in Phase 3.
-        </p>
+        <QuickAdd
+          onSave={async (expense, category) => {
+            const id = await saveExpense(expense);
+            setQuickAddOpen(false);
+            setToast({
+              id: Date.now(),
+              text: `${formatCHF(expense.amount)} · ${category.name} gespeichert`,
+              actionLabel: 'Rückgängig',
+              onAction: () => void deleteExpense(id),
+            });
+          }}
+        />
       </BottomSheet>
+      <Toast toast={toast} onDismiss={dismissToast} />
     </div>
   );
 }

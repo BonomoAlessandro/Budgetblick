@@ -3,10 +3,18 @@ import { Link } from 'react-router-dom';
 import { BudgetCard } from '../components/BudgetCard';
 import { Icon } from '../components/Icon';
 import { PageHeader } from '../components/PageHeader';
+import { RecentExpensesCard } from '../components/RecentExpensesCard';
 import { UpcomingCard } from '../components/UpcomingCard';
-import { useCategoryMap, useExpensesBetween, useIncomes, useRecurringExpenses } from '../db/hooks';
+import {
+  useCategoryMap,
+  useExpensesBetween,
+  useIncomes,
+  useRecentExpenses,
+  useRecurringExpenses,
+} from '../db/hooks';
 import { computeBudget, upcomingPayments } from '../lib/budget';
 import { formatMonth, toISODate, todayISO } from '../lib/date';
+import { latestExpenses } from '../lib/expenses';
 
 export function DashboardPage() {
   const now = new Date();
@@ -14,9 +22,11 @@ export function DashboardPage() {
   const incomes = useIncomes();
   const recurring = useRecurringExpenses();
   const expenses = useExpensesBetween(toISODate(startOfMonth(now)), toISODate(endOfMonth(now)));
+  // Etwas mehr laden, damit gleiche Tage korrekt nach Erfassungszeit sortiert werden.
+  const recent = useRecentExpenses(20);
   const categoryMap = useCategoryMap();
 
-  const loaded = incomes && recurring && expenses;
+  const loaded = incomes && recurring && expenses && recent;
 
   return (
     <>
@@ -40,6 +50,11 @@ export function DashboardPage() {
           />
           <UpcomingCard
             payments={upcomingPayments(recurring, today, 5)}
+            categoryMap={categoryMap}
+            today={today}
+          />
+          <RecentExpensesCard
+            expenses={latestExpenses(recent, 5)}
             categoryMap={categoryMap}
             today={today}
           />

@@ -69,6 +69,8 @@ export interface Expense {
   note?: string;
   receiptImage?: Blob;
   source: ExpenseSource;
+  /** Zeitpunkt der Erfassung (ms), für die Reihenfolge innerhalb eines Tages */
+  createdAt?: number;
 }
 
 export interface Setting<T = unknown> {

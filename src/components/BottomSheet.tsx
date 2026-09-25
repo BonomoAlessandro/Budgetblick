@@ -8,14 +8,20 @@ interface BottomSheetProps {
   children: ReactNode;
 }
 
-/** Modales Bottom-Sheet auf Basis von <dialog> (Fokusfalle und Escape inklusive). */
+/**
+ * Modales Bottom-Sheet auf Basis von <dialog> (Fokusfalle und Escape inklusive).
+ * Ein Element mit `data-autofocus` im Inhalt erhält beim Öffnen den Fokus.
+ */
 export function BottomSheet({ open, title, onClose, children }: BottomSheetProps) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal?.();
+    if (open && !dialog.open) {
+      dialog.showModal?.();
+      dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus();
+    }
     if (!open && dialog.open) dialog.close?.();
   }, [open]);
 
