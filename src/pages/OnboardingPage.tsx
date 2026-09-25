@@ -165,7 +165,7 @@ function FixedCostsStep({ onNext }: { onNext: () => void }) {
           <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
             {recurring.map((r) => (
               <li key={r.id} className="flex min-h-12 items-center gap-3 px-4 py-2">
-                <span aria-hidden="true">{categoryMap.get(r.categoryId)?.icon}</span>
+                <span aria-hidden="true">{r.icon ?? categoryMap.get(r.categoryId)?.icon}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">{r.name}</span>
                   <span className="block text-sm text-slate-500 dark:text-slate-400">
@@ -198,6 +198,7 @@ function FixedCostsStep({ onNext }: { onNext: () => void }) {
             await saveRecurringExpense({
               ...values,
               categoryId: selected.categoryId,
+              icon: selected.icon,
               nextDueDate: nextMonth,
               active: true,
             });
@@ -217,7 +218,7 @@ function FixedCostsStep({ onNext }: { onNext: () => void }) {
                   onClick={() => setSelected(s)}
                   className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 text-sm font-medium hover:border-brand-600 hover:bg-brand-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
                 >
-                  <span aria-hidden="true">{categoryMap.get(s.categoryId)?.icon}</span>
+                  <span aria-hidden="true">{s.icon ?? categoryMap.get(s.categoryId)?.icon}</span>
                   {s.name}
                 </button>
               </li>

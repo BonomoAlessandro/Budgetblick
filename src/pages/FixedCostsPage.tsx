@@ -127,7 +127,7 @@ export function FixedCostsPage() {
                           className="flex size-10 shrink-0 items-center justify-center rounded-full text-lg"
                           style={{ backgroundColor: `${category?.color ?? '#64748b'}22` }}
                         >
-                          {category?.icon ?? '📄'}
+                          {r.icon ?? category?.icon ?? '📄'}
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-medium">{r.name}</span>

@@ -97,6 +97,32 @@ describe('BudgetDB', () => {
     expect(await testDb.expenses.get('e1')).toMatchObject({ categoryId: 'var-gesundheit' });
   });
 
+  it('gibt bestehendem «Internet & TV» das Symbol 📺, sonst nichts', async () => {
+    const name = 'test-migration-v4';
+    const old = new Dexie(name);
+    old.version(3).stores({
+      categories: 'id, kind, name',
+      incomes: 'id, name',
+      recurringExpenses: 'id, categoryId, nextDueDate, name',
+      expenses: 'id, date, categoryId',
+      settings: 'key',
+      products: 'code',
+    });
+    const base = { amount: 5000, interval: 'monthly', nextDueDate: '2026-10-01', active: true };
+    await old.table('recurringExpenses').bulkAdd([
+      { ...base, id: 'tv', name: 'Internet & TV', categoryId: 'fix-telefon' },
+      { ...base, id: 'handy', name: 'Handy-Abo', categoryId: 'fix-telefon' },
+      // eigenes Symbol bleibt
+      { ...base, id: 'tv2', name: 'Internet & TV', categoryId: 'fix-telefon', icon: '🛰️' },
+    ]);
+    old.close();
+
+    testDb = new BudgetDB(name);
+    expect((await testDb.recurringExpenses.get('tv'))?.icon).toBe('📺');
+    expect((await testDb.recurringExpenses.get('handy'))?.icon).toBeUndefined();
+    expect((await testDb.recurringExpenses.get('tv2'))?.icon).toBe('🛰️');
+  });
+
   it('hat eindeutige IDs für alle Standardkategorien', () => {
     const ids = new Set(DEFAULT_CATEGORIES.map((c) => c.id));
     expect(ids.size).toBe(DEFAULT_CATEGORIES.length);

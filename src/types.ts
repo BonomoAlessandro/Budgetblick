@@ -55,6 +55,8 @@ export interface RecurringExpense {
   active: boolean;
   notes?: string;
   contract?: Contract;
+  /** Eigenes Symbol (Emoji); ohne gilt das Symbol der Kategorie */
+  icon?: string;
 }
 
 export type ExpenseSource = 'manual' | 'scan';

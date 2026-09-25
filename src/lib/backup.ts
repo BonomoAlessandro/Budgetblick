@@ -121,6 +121,7 @@ const SHAPES: Record<keyof BackupData, Record<string, Check>> = {
     active: bool,
     notes: optStr,
     contract: contractCheck,
+    icon: optStr,
   },
   expenses: {
     id: str,

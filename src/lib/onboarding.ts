@@ -6,6 +6,8 @@ export interface FixedCostSuggestion {
   interval: Interval;
   /** Vorschlagsbetrag in Rappen, nur wo der Betrag schweizweit einheitlich ist */
   amount?: number;
+  /** Eigenes Symbol, wenn sich der Eintrag von seiner Kategorie abheben soll */
+  icon?: string;
 }
 
 /** Typische Schweizer Fixkosten für den Einrichtungs-Assistenten. */
@@ -21,7 +23,7 @@ export const FIXED_COST_SUGGESTIONS: FixedCostSuggestion[] = [
   },
   { name: 'Autoversicherung', categoryId: 'fix-mobilitaet', interval: 'yearly' },
   { name: 'Handy-Abo', categoryId: 'fix-telefon', interval: 'monthly' },
-  { name: 'Internet & TV', categoryId: 'fix-telefon', interval: 'monthly' },
+  { name: 'Internet & TV', categoryId: 'fix-telefon', interval: 'monthly', icon: '📺' },
   { name: 'Serafe', categoryId: 'fix-serafe', interval: 'yearly', amount: 33500 },
   { name: 'GA', categoryId: 'fix-mobilitaet', interval: 'yearly' },
   { name: 'Halbtax', categoryId: 'fix-mobilitaet', interval: 'yearly' },

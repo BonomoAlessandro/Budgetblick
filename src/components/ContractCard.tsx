@@ -44,7 +44,7 @@ export function ContractCard({
     >
       <header className="flex items-start gap-3">
         <span aria-hidden="true" className="text-2xl">
-          {category?.icon ?? '📄'}
+          {expense.icon ?? category?.icon ?? '📄'}
         </span>
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-semibold">{expense.name}</h2>

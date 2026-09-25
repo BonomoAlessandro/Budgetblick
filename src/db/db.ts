@@ -40,6 +40,16 @@ export class BudgetDB extends Dexie {
         const travel = DEFAULT_CATEGORIES.find((c) => c.id === 'var-reisen');
         if (travel && !(await categories.get(travel.id))) await categories.add(travel);
       });
+    // Fixkosten mit eigenem Symbol: «Internet & TV» aus dem Assistenten bekommt 📺,
+    // damit es sich vom «Handy-Abo» (📱 der Kategorie) unterscheidet.
+    this.version(4)
+      .stores({})
+      .upgrade((tx) =>
+        tx
+          .table<RecurringExpense, string>('recurringExpenses')
+          .filter((r) => r.name === 'Internet & TV' && r.categoryId === 'fix-telefon' && !r.icon)
+          .modify({ icon: '📺' }),
+      );
 
     // Wird nur beim allerersten Anlegen der Datenbank ausgeführt.
     this.on('populate', (tx) => {

@@ -57,6 +57,26 @@ describe('Einrichtungs-Assistent', () => {
     expect(await db.settings.get('onboardingInProgress')).toBeUndefined();
   });
 
+  it('unterscheidet «Internet & TV» (📺) vom «Handy-Abo» (📱) und speichert das Symbol', async () => {
+    const user = userEvent.setup();
+    await renderApp('/', { onboarding: true });
+    await user.click(screen.getByRole('button', { name: 'Überspringen' }));
+    const suggestions = await screen.findByRole('list', { name: 'Vorschläge' });
+    expect(within(suggestions).getByRole('button', { name: /Handy-Abo/ })).toHaveTextContent('📱');
+    const tv = within(suggestions).getByRole('button', { name: /Internet & TV/ });
+    expect(tv).toHaveTextContent('📺');
+
+    await user.click(tv);
+    const form = screen.getByRole('form', { name: 'Internet & TV erfassen' });
+    await user.type(within(form).getByLabelText('Betrag (CHF)'), '79');
+    await user.click(within(form).getByRole('button', { name: 'Hinzufügen' }));
+    await waitFor(async () =>
+      expect(await db.recurringExpenses.toArray()).toMatchObject([
+        { name: 'Internet & TV', categoryId: 'fix-telefon', icon: '📺' },
+      ]),
+    );
+  });
+
   it('lässt jeden Schritt überspringen', async () => {
     const user = userEvent.setup();
     await renderApp('/', { onboarding: true });
