@@ -16,3 +16,6 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
 export function buttonClass(variant: ButtonVariant = 'primary', extra = ''): string {
   return `inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-base font-semibold disabled:opacity-50 ${BUTTON_VARIANTS[variant]} ${extra}`;
 }
+
+/** Trennlinien-Liste über die volle Kartenbreite (Kategorien in den Einstellungen). */
+export const categoryListClass = '-mx-4 divide-y divide-slate-100 dark:divide-slate-800';

@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db/db';
+import { SETTING_ENTRY_CATEGORY_ORDER } from '../db/hooks';
 import { BACKUP_FORMAT } from '../lib/backup';
 import { renderApp, resetDb } from '../test/utils';
 
@@ -15,7 +16,7 @@ afterEach(() => {
 async function openSettings() {
   const user = userEvent.setup();
   await renderApp('/einstellungen');
-  await screen.findByText('Lebensmittel');
+  await screen.findAllByText('Lebensmittel');
   return user;
 }
 
@@ -41,6 +42,43 @@ describe('Einstellungen', () => {
     await waitFor(async () => expect((await db.settings.get('reminderLeadDays'))?.value).toBe(30));
   });
 
+  it('zeigt variable Kategorien in der Reihenfolge beim Erfassen, mit Griff zum Ziehen', async () => {
+    // Ziehen selbst braucht echte Layout-Positionen (im Browser geprüft); hier: Anzeige und Zurücksetzen
+    await db.settings.put({
+      key: SETTING_ENTRY_CATEGORY_ORDER,
+      value: ['var-sonstiges', 'var-reisen'],
+    });
+    const user = await openSettings();
+    const card = screen.getByRole('heading', { name: 'Kategorien · Variabel' }).closest('section')!;
+    const order = () =>
+      within(card)
+        .getAllByRole('listitem')
+        .map((li) => li.querySelector('.truncate')?.textContent);
+    await waitFor(() =>
+      expect(order().slice(0, 3)).toEqual(['Sonstiges', 'Reisen', 'Lebensmittel']),
+    );
+
+    // Griff pro Zeile, keine Pfeil-Knöpfe; Antippen des Namens bleibt die Bearbeitung
+    expect(within(card).getAllByRole('button', { name: /verschieben$/ })).toHaveLength(7);
+    expect(within(card).getByRole('button', { name: 'Reisen verschieben' })).toHaveAttribute(
+      'aria-describedby',
+    );
+    expect(within(card).queryByRole('button', { name: /nach oben/ })).toBeNull();
+    expect(within(card).getByRole('button', { name: 'Reisen' })).toBeInTheDocument();
+    // Fixkosten lassen sich nicht umsortieren
+    const fixedCard = screen
+      .getByRole('heading', { name: 'Kategorien · Fixkosten' })
+      .closest('section')!;
+    expect(within(fixedCard).queryByRole('button', { name: /verschieben$/ })).toBeNull();
+
+    await user.click(
+      within(card).getByRole('button', { name: 'Standardreihenfolge wiederherstellen' }),
+    );
+    await waitFor(() =>
+      expect(order().slice(0, 3)).toEqual(['Lebensmittel', 'Restaurant & Café', 'Freizeit']),
+    );
+  });
+
   it('legt Kategorien an, bearbeitet sie und schützt verwendete vor dem Löschen', async () => {
     await db.expenses.add({
       id: 'e',
@@ -60,21 +98,21 @@ describe('Einstellungen', () => {
     await user.clear(within(dialog).getByLabelText('Symbol (Emoji)'));
     await user.type(within(dialog).getByLabelText('Symbol (Emoji)'), '🐕');
     await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
-    expect(await within(variable).findByRole('button', { name: /Haustier/ })).toBeInTheDocument();
+    expect(await within(variable).findByRole('button', { name: 'Haustier' })).toBeInTheDocument();
     expect(await db.categories.where('name').equals('Haustier').first()).toMatchObject({
       kind: 'variable',
       icon: '🐕',
     });
 
     // Verwendete Kategorie kann nicht gelöscht werden
-    await user.click(within(variable).getByRole('button', { name: /Freizeit/ }));
+    await user.click(within(variable).getByRole('button', { name: 'Freizeit' }));
     dialog = await screen.findByRole('dialog', { name: 'Kategorie bearbeiten' });
     expect(await within(dialog).findByText(/Wird von 1 Eintrag verwendet/)).toBeInTheDocument();
     expect(within(dialog).queryByRole('button', { name: 'Löschen' })).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Schliessen' }));
 
     // Unbenutzte Kategorie löschen
-    await user.click(within(variable).getByRole('button', { name: /Haustier/ }));
+    await user.click(within(variable).getByRole('button', { name: 'Haustier' }));
     dialog = await screen.findByRole('dialog', { name: 'Kategorie bearbeiten' });
     await user.click(await within(dialog).findByRole('button', { name: 'Löschen' }));
     await user.click(within(dialog).getByRole('button', { name: 'Wirklich löschen' }));

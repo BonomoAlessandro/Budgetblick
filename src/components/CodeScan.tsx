@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { db } from '../db/db';
-import { SETTING_PRODUCT_LOOKUP, useCategories } from '../db/hooks';
+import { SETTING_PRODUCT_LOOKUP, useEntryCategories } from '../db/hooks';
 import { rememberProduct } from '../db/repo';
 import { isProductFormat, loadCodeReader, readCode, type ScannedCode } from '../lib/codeReader';
 import { lookupProduct } from '../lib/productLookup';
@@ -155,7 +155,7 @@ function PhotoInput({
  * und das Formular vorausfüllen. Gespeichert wird erst nach Bestätigung.
  */
 export function CodeScan({ onSave, onCancel }: CodeScanProps) {
-  const categories = useCategories('variable');
+  const categories = useEntryCategories();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<ScanState>(() =>
     // Ohne HTTPS (oder in jsdom) fehlt navigator.mediaDevices ganz.

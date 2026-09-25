@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo } from 'react';
+import { applyCategoryOrder, DEFAULT_ENTRY_ORDER } from '../lib/categoryOrder';
 import type { Category, CategoryKind } from '../types';
 import { db } from './db';
 import { DEFAULT_CATEGORIES } from './defaultCategories';
@@ -60,5 +61,18 @@ export function useSetting<T>(key: string, fallback: T): T {
 }
 
 export const SETTING_REMINDER_LEAD_DAYS = 'reminderLeadDays';
+/** Eigene Reihenfolge der variablen Kategorien beim Erfassen (Liste von IDs) */
+export const SETTING_ENTRY_CATEGORY_ORDER = 'entryCategoryOrder';
+
+/** Variable Kategorien in der Reihenfolge fürs Erfassen neuer Ausgaben. */
+export function useEntryCategories(): Category[] | undefined {
+  const categories = useCategories('variable');
+  const order = useSetting<string[]>(SETTING_ENTRY_CATEGORY_ORDER, DEFAULT_ENTRY_ORDER);
+  return useMemo(
+    () => (categories ? applyCategoryOrder(categories, order) : undefined),
+    [categories, order],
+  );
+}
+
 /** Produktnamen unbekannter Barcodes bei Open Food Facts nachschlagen (Standard: an) */
 export const SETTING_PRODUCT_LOOKUP = 'productLookup';

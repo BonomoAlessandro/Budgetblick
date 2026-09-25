@@ -41,7 +41,7 @@ describe('Navigation', () => {
     renderAt('/');
     await user.click(await screen.findByRole('link', { name: 'Einstellungen' }));
     expect(screen.getByRole('heading', { level: 1, name: 'Einstellungen' })).toBeInTheDocument();
-    expect(await screen.findByText('Lebensmittel')).toBeInTheDocument();
+    expect((await screen.findAllByText('Lebensmittel')).length).toBeGreaterThan(0);
     expect(screen.getByText('Krankenkasse')).toBeInTheDocument();
   });
 });

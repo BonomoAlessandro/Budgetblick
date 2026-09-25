@@ -5,20 +5,6 @@ export function compareNewestFirst(a: Expense, b: Expense): number {
   return b.date.localeCompare(a.date) || (b.createdAt ?? 0) - (a.createdAt ?? 0);
 }
 
-/**
- * Die `limit` am häufigsten genutzten Kategorien. Kategorien ohne Nutzung
- * werden in ihrer ursprünglichen Reihenfolge aufgefüllt.
- */
-export function topCategories(expenses: Expense[], categories: Category[], limit = 6): Category[] {
-  const counts = new Map<string, number>();
-  for (const e of expenses) counts.set(e.categoryId, (counts.get(e.categoryId) ?? 0) + 1);
-  return categories
-    .map((category, index) => ({ category, index, count: counts.get(category.id) ?? 0 }))
-    .sort((a, b) => b.count - a.count || a.index - b.index)
-    .slice(0, limit)
-    .map((x) => x.category);
-}
-
 export interface DayGroup {
   date: string;
   total: number;

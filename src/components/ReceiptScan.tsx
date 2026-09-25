@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useCategories } from '../db/hooks';
+import { useEntryCategories } from '../db/hooks';
 import { todayISO } from '../lib/date';
 import { prepareReceipt } from '../lib/image';
 import { recognizeText, type OcrProgress } from '../lib/ocr';
@@ -70,7 +70,7 @@ function ProgressView({ progress, onCancel }: { progress?: OcrProgress; onCancel
 
 /** Quittung verarbeiten und als vorausgefülltes Formular zur Bestätigung anzeigen. */
 export function ReceiptScan({ file, onSave, onCancel }: ReceiptScanProps) {
-  const categories = useCategories('variable');
+  const categories = useEntryCategories();
   const [state, setState] = useState<ScanState>({ phase: 'working' });
 
   useEffect(() => {

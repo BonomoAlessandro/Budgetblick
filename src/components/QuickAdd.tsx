@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
-import { useCategories, useRecentExpenses } from '../db/hooks';
+import { useEntryCategories } from '../db/hooks';
 import { todayISO } from '../lib/date';
-import { topCategories } from '../lib/expenses';
 import { parseAmount } from '../lib/money';
 import type { Category, Expense } from '../types';
 import { Field } from './fields';
@@ -21,8 +20,8 @@ interface QuickAddProps {
 const scanButtonClass =
   'flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 px-2 text-center font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800';
 
-/** Anzahl Ausgaben, die für die Häufigkeit der Kategorien berücksichtigt werden. */
-const USAGE_SAMPLE = 200;
+/** Direkt sichtbare Kategorien (drei Reihen à drei), der Rest hinter «Weitere». */
+const VISIBLE_CATEGORIES = 9;
 
 function CategoryButton({ category, onClick }: { category: Category; onClick: () => void }) {
   return (
@@ -44,8 +43,8 @@ function CategoryButton({ category, onClick }: { category: Category; onClick: ()
  * Datum, Händler und Notiz sind optional aufklappbar.
  */
 export function QuickAdd({ onSave, onScan, onCodeScan }: QuickAddProps) {
-  const categories = useCategories('variable');
-  const recent = useRecentExpenses(USAGE_SAMPLE);
+  // Reihenfolge aus den Einstellungen («Reihenfolge beim Erfassen»)
+  const categories = useEntryCategories();
   const amountRef = useRef<HTMLInputElement>(null);
 
   const [amount, setAmount] = useState('');
@@ -57,8 +56,8 @@ export function QuickAdd({ onSave, onScan, onCodeScan }: QuickAddProps) {
 
   // Das Betragsfeld wird sofort gerendert, die Kategorien sobald geladen. Bewusst ohne
   // Autofokus: Auf dem Handy würde sonst die Tastatur die Scan-Knöpfe verdecken.
-  const top = categories && recent ? topCategories(recent, categories, 6) : [];
-  const rest = (categories ?? []).filter((c) => !top.includes(c));
+  const top = (categories ?? []).slice(0, VISIBLE_CATEGORIES);
+  const rest = (categories ?? []).slice(VISIBLE_CATEGORIES);
 
   function save(category: Category) {
     const parsed = parseAmount(amount);

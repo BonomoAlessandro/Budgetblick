@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db/db';
+import { SETTING_ENTRY_CATEGORY_ORDER } from '../db/hooks';
 import { todayISO } from '../lib/date';
 import { renderApp, resetDb } from '../test/utils';
 
@@ -20,7 +21,21 @@ describe('Schnellerfassung', () => {
     expect(amount).toHaveAttribute('inputmode', 'decimal');
 
     const group = within(dialog).getByRole('group', { name: 'Kategorie wählen und speichern' });
-    expect(within(group).getAllByRole('button')).toHaveLength(6);
+    // Alle sieben Kategorien direkt sichtbar, in der Standardreihenfolge
+    expect(
+      within(group)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual([
+      '🛒Lebensmittel',
+      '☕Restaurant & Café',
+      '🎟️Freizeit',
+      '🛍️Shopping',
+      '✈️Reisen',
+      '🚲Transport',
+      '📦Sonstiges',
+    ]);
+    expect(within(dialog).queryByRole('button', { name: /Weitere Kategorien/ })).toBeNull();
 
     await user.type(amount, '12,50');
     await user.click(within(group).getByRole('button', { name: /Lebensmittel/ }));
@@ -50,7 +65,7 @@ describe('Schnellerfassung', () => {
     expect(await db.expenses.count()).toBe(0);
   });
 
-  it('übernimmt optionale Angaben und weitere Kategorien', async () => {
+  it('übernimmt optionale Angaben', async () => {
     const user = userEvent.setup();
     await renderApp('/');
     await user.click(screen.getByRole('button', { name: 'Ausgabe erfassen' }));
@@ -61,7 +76,6 @@ describe('Schnellerfassung', () => {
     await user.clear(date);
     await user.type(date, '2026-09-01');
     await user.type(within(dialog).getByLabelText('Händler'), 'Blumen Meier');
-    await user.click(within(dialog).getByRole('button', { name: /Weitere Kategorien/ }));
     await user.click(within(dialog).getByRole('button', { name: /Sonstiges/ }));
 
     await waitFor(async () => expect(await db.expenses.count()).toBe(1));
@@ -89,23 +103,41 @@ describe('Schnellerfassung', () => {
     expect(await screen.findByRole('dialog', { name: 'Ausgabe erfassen' })).toBeVisible();
   });
 
-  it('schlägt die häufigsten Kategorien vor', async () => {
-    await db.expenses.bulkAdd(
-      [1, 2, 3].map((i) => ({
-        id: `g${i}`,
-        amount: 100,
-        date: todayISO(),
-        categoryId: 'var-sonstiges',
-        source: 'manual' as const,
+  it('verwendet die Reihenfolge aus den Einstellungen', async () => {
+    await db.settings.put({
+      key: SETTING_ENTRY_CATEGORY_ORDER,
+      value: ['var-sonstiges', 'var-reisen'],
+    });
+    const user = userEvent.setup();
+    await renderApp('/');
+    await user.click(screen.getByRole('button', { name: 'Ausgabe erfassen' }));
+    const group = await screen.findByRole('group', { name: 'Kategorie wählen und speichern' });
+    await waitFor(() => {
+      const names = within(group)
+        .getAllByRole('button')
+        .map((b) => b.textContent);
+      expect(names.slice(0, 3)).toEqual(['📦Sonstiges', '✈️Reisen', '🛒Lebensmittel']);
+    });
+  });
+
+  it('zeigt ab zehn Kategorien den Rest hinter «Weitere Kategorien»', async () => {
+    await db.categories.bulkAdd(
+      ['Haushalt', 'Haustier', 'Hobby'].map((name, i) => ({
+        id: `c${i}`,
+        name,
+        icon: '🏷️',
+        color: '#64748b',
+        kind: 'variable' as const,
       })),
     );
     const user = userEvent.setup();
     await renderApp('/');
     await user.click(screen.getByRole('button', { name: 'Ausgabe erfassen' }));
-    const group = await screen.findByRole('group', { name: 'Kategorie wählen und speichern' });
-    await waitFor(() =>
-      expect(within(group).getAllByRole('button')[0]).toHaveTextContent('Sonstiges'),
-    );
+    const dialog = await screen.findByRole('dialog', { name: 'Ausgabe erfassen' });
+    const group = within(dialog).getByRole('group', { name: 'Kategorie wählen und speichern' });
+    await waitFor(() => expect(within(group).getAllByRole('button')).toHaveLength(9));
+    await user.click(within(dialog).getByRole('button', { name: 'Weitere Kategorien (1)' }));
+    expect(within(group).getAllByRole('button')).toHaveLength(10);
   });
 });
 

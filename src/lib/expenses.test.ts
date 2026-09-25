@@ -1,13 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CATEGORIES } from '../db/defaultCategories';
 import type { Category, Expense } from '../types';
-import {
-  OTHER_SLICE_ID,
-  groupByDay,
-  latestExpenses,
-  sumByCategory,
-  topCategories,
-} from './expenses';
+import { OTHER_SLICE_ID, groupByDay, latestExpenses, sumByCategory } from './expenses';
 
 const variable = DEFAULT_CATEGORIES.filter((c) => c.kind === 'variable');
 
@@ -16,35 +10,6 @@ function exp(categoryId: string, amount: number, date = '2026-09-25', createdAt?
   seq += 1;
   return { id: `e${seq}`, amount, date, categoryId, source: 'manual', createdAt };
 }
-
-describe('topCategories', () => {
-  it('liefert ohne Ausgaben die ersten Kategorien in Standardreihenfolge', () => {
-    expect(topCategories([], variable, 6).map((c) => c.id)).toEqual(
-      variable.slice(0, 6).map((c) => c.id),
-    );
-  });
-
-  it('sortiert nach Häufigkeit, nicht nach Betrag', () => {
-    const list = [
-      exp('var-sonstiges', 100),
-      exp('var-sonstiges', 100),
-      exp('var-sonstiges', 100),
-      exp('var-transport', 100),
-      exp('var-transport', 100),
-      exp('var-shopping', 99999),
-    ];
-    const ids = topCategories(list, variable, 6).map((c) => c.id);
-    expect(ids.slice(0, 3)).toEqual(['var-sonstiges', 'var-transport', 'var-shopping']);
-    expect(ids.slice(3)).toEqual(['var-lebensmittel', 'var-restaurant', 'var-freizeit']);
-  });
-
-  it('ignoriert Ausgaben mit gelöschten Kategorien', () => {
-    expect(topCategories([exp('geloescht', 100)], variable, 2).map((c) => c.id)).toEqual([
-      'var-lebensmittel',
-      'var-restaurant',
-    ]);
-  });
-});
 
 describe('groupByDay', () => {
   it('gruppiert nach Tag, neueste zuerst, mit Tagessumme', () => {

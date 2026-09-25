@@ -1,20 +1,24 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState, type ReactNode } from 'react';
+import { lazy, Suspense, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BottomSheet } from '../components/BottomSheet';
 import { Card } from '../components/Card';
 import { CategoryForm } from '../components/CategoryForm';
+import { CategoryList } from '../components/CategoryList';
 import { Field } from '../components/fields';
 import { Icon } from '../components/Icon';
 import { PageHeader } from '../components/PageHeader';
 import { buttonClass, inputClass } from '../components/styles';
 import { createBackup, deleteAllData, restoreBackup } from '../db/backup';
 import {
+  SETTING_ENTRY_CATEGORY_ORDER,
   SETTING_PRODUCT_LOOKUP,
   SETTING_REMINDER_LEAD_DAYS,
   useCategories,
+  useEntryCategories,
   useSetting,
 } from '../db/hooks';
+import { DEFAULT_ENTRY_ORDER } from '../lib/categoryOrder';
 import { categoryUsageCount, deleteCategory, saveCategory, setSetting } from '../db/repo';
 import { BackupError, backupFileName, parseBackup } from '../lib/backup';
 import { DEFAULT_REMINDER_LEAD_DAYS } from '../lib/contracts';
@@ -23,48 +27,19 @@ import { downloadTextFile } from '../lib/download';
 import { getTheme, setTheme, THEME_LABELS, type Theme } from '../lib/theme';
 import type { Category, CategoryKind } from '../types';
 
+// Drag-and-drop (dnd-kit) erst mit den Einstellungen laden, nicht im Haupt-Bundle.
+const SortableCategoryList = lazy(() =>
+  import('../components/SortableCategoryList').then((m) => ({
+    default: m.SortableCategoryList,
+  })),
+);
+
 type Editing = { category?: Category; kind: CategoryKind } | null;
 
 interface PendingImport {
   json: unknown;
   exportedAt?: string;
   counts: { expenses: number; recurring: number };
-}
-
-function CategoryList({
-  categories,
-  onEdit,
-}: {
-  categories: Category[];
-  onEdit: (category: Category) => void;
-}) {
-  return (
-    <ul className="-mx-4 divide-y divide-slate-100 dark:divide-slate-800">
-      {categories.map((c) => (
-        <li key={c.id}>
-          <button
-            type="button"
-            onClick={() => onEdit(c)}
-            className="flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50"
-          >
-            <span
-              aria-hidden="true"
-              className="flex size-9 items-center justify-center rounded-full text-lg"
-              style={{ backgroundColor: `${c.color}22` }}
-            >
-              {c.icon}
-            </span>
-            <span className="flex-1">{c.name}</span>
-            <span
-              aria-hidden="true"
-              className="size-3 rounded-full"
-              style={{ backgroundColor: c.color }}
-            />
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
 }
 
 function StatusMessage({ children, error }: { children: ReactNode; error?: boolean }) {
@@ -85,7 +60,9 @@ function StatusMessage({ children, error }: { children: ReactNode; error?: boole
 export function SettingsPage() {
   const navigate = useNavigate();
   const fixed = useCategories('fixed') ?? [];
-  const variable = useCategories('variable') ?? [];
+  // In der Reihenfolge beim Erfassen – dieselbe Liste dient zum Umsortieren.
+  const variable = useEntryCategories() ?? [];
+  const saveEntryOrder = (order: string[]) => void setSetting(SETTING_ENTRY_CATEGORY_ORDER, order);
   const leadDays = useSetting(SETTING_REMINDER_LEAD_DAYS, DEFAULT_REMINDER_LEAD_DAYS);
   const productLookup = useSetting(SETTING_PRODUCT_LOOKUP, true);
 
@@ -263,10 +240,43 @@ export function SettingsPage() {
                 Neu
               </button>
             </div>
-            <CategoryList
-              categories={list}
-              onEdit={(category) => setEditing({ category, kind: category.kind })}
-            />
+            {kind === 'variable' && (
+              <p className="mb-2 text-sm text-slate-600 dark:text-slate-400">
+                In dieser Reihenfolge erscheinen sie beim Erfassen einer Ausgabe. Zum Ändern eine
+                Zeile ziehen – auf dem Handy kurz gedrückt halten.
+              </p>
+            )}
+            {kind === 'variable' ? (
+              // Bis dnd-kit geladen ist: dieselbe Liste ohne Griffe
+              <Suspense
+                fallback={
+                  <CategoryList
+                    categories={list}
+                    onEdit={(category) => setEditing({ category, kind: category.kind })}
+                  />
+                }
+              >
+                <SortableCategoryList
+                  categories={list}
+                  onEdit={(category) => setEditing({ category, kind: category.kind })}
+                  onReorder={saveEntryOrder}
+                />
+              </Suspense>
+            ) : (
+              <CategoryList
+                categories={list}
+                onEdit={(category) => setEditing({ category, kind: category.kind })}
+              />
+            )}
+            {kind === 'variable' && (
+              <button
+                type="button"
+                className={buttonClass('ghost', 'mt-2 px-3 text-sm')}
+                onClick={() => saveEntryOrder(DEFAULT_ENTRY_ORDER)}
+              >
+                Standardreihenfolge wiederherstellen
+              </button>
+            )}
           </Card>
         ))}
 
