@@ -17,11 +17,18 @@ type ScanState =
   | { phase: 'camera' }
   /** Keine Kamera oder kein Zugriff: QR-Code per Foto einlesen */
   | { phase: 'photo'; reason: string }
-  | { phase: 'failed' }
+  /** Leser nicht ladbar oder Lesen scheitert wiederholt */
+  | { phase: 'failed'; cause: 'load' | 'read'; detail?: string }
   | { phase: 'result'; content: QrContent };
 
 /** Pause zwischen zwei Leseversuchen im Kamerabild */
 const SCAN_INTERVAL_MS = 200;
+/** Nach so vielen Fehlern in Folge wird abgebrochen und der Fehler angezeigt. */
+const MAX_READ_ERRORS = 10;
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+}
 
 function billToInitial(bill: QrBill): Partial<Expense> {
   const name = bill.creditor.toLowerCase();
@@ -59,10 +66,18 @@ function Notice({ tone, children }: { tone: 'info' | 'warn'; children: ReactNode
   );
 }
 
-function PhotoInput({ onFile }: { onFile: (file: File) => void }) {
+function PhotoInput({
+  onFile,
+  label = 'Foto des QR-Codes wählen',
+  variant = 'primary',
+}: {
+  onFile: (file: File) => void;
+  label?: string;
+  variant?: 'primary' | 'secondary';
+}) {
   return (
-    <label className={buttonClass('primary', 'w-full cursor-pointer focus-within:outline-2')}>
-      Foto des QR-Codes wählen
+    <label className={buttonClass(variant, 'w-full cursor-pointer focus-within:outline-2')}>
+      {label}
       <input
         type="file"
         accept="image/*"
@@ -89,6 +104,8 @@ export function QrScan({ onSave, onCancel }: QrScanProps) {
       : { phase: 'photo', reason: 'Die Kamera ist in diesem Browser nicht verfügbar.' },
   );
   const [photoError, setPhotoError] = useState<string>();
+  /** Auflösung des Kamerabilds, zur Kontrolle unter dem Bild angezeigt */
+  const [cameraSize, setCameraSize] = useState<string>();
 
   useEffect(() => {
     if (state.phase !== 'camera') return;
@@ -101,12 +118,14 @@ export function QrScan({ onSave, onCancel }: QrScanProps) {
         await loadQrReader();
       } catch (error) {
         console.error('QR-Leser konnte nicht geladen werden', error);
-        if (!stopped) setState({ phase: 'failed' });
+        if (!stopped) setState({ phase: 'failed', cause: 'load', detail: errorText(error) });
         return;
       }
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
+          // Hohe Auflösung: Kleine Codes (z.B. auf einer Dose) lassen sich dann auch
+          // aus etwas Abstand lesen, wo die Kamera noch scharf stellt.
+          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
           audio: false,
         });
       } catch (error) {
@@ -124,16 +143,26 @@ export function QrScan({ onSave, onCancel }: QrScanProps) {
       video.srcObject = stream;
       await video.play().catch(() => {});
 
+      let errors = 0;
       const tick = async () => {
         if (stopped) return;
         try {
-          const value = video.readyState >= 2 ? await readQr(video) : undefined;
-          if (value && !stopped) {
-            setState({ phase: 'result', content: classifyQr(value) });
-            return;
+          if (video.readyState >= 2) {
+            setCameraSize(`${video.videoWidth}×${video.videoHeight}`);
+            const value = await readQr(video);
+            errors = 0;
+            if (value && !stopped) {
+              setState({ phase: 'result', content: classifyQr(value) });
+              return;
+            }
           }
         } catch (error) {
           console.error('QR-Code lesen fehlgeschlagen', error);
+          errors += 1;
+          if (errors >= MAX_READ_ERRORS) {
+            if (!stopped) setState({ phase: 'failed', cause: 'read', detail: errorText(error) });
+            return;
+          }
         }
         if (!stopped) timer = setTimeout(tick, SCAN_INTERVAL_MS);
       };
@@ -158,7 +187,7 @@ export function QrScan({ onSave, onCancel }: QrScanProps) {
         );
     } catch (error) {
       console.error('QR-Code lesen fehlgeschlagen', error);
-      setState({ phase: 'failed' });
+      setState({ phase: 'failed', cause: 'read', detail: errorText(error) });
     }
   }
 
@@ -186,9 +215,18 @@ export function QrScan({ onSave, onCancel }: QrScanProps) {
           />
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Halte den QR-Code einer Rechnung in den Rahmen. Die Erkennung läuft vollständig auf deinem
-          Gerät.
+          Halte den QR-Code in den Rahmen, mit etwa 15–20 cm Abstand, damit die Kamera scharf
+          stellt. Die Erkennung läuft vollständig auf deinem Gerät.
         </p>
+        <p role="status" className="text-xs text-slate-400 dark:text-slate-500">
+          {cameraSize ? `Sucht QR-Code … (Kamera ${cameraSize})` : 'Kamera wird gestartet …'}
+        </p>
+        {photoError && <Notice tone="warn">{photoError}</Notice>}
+        <PhotoInput
+          variant="secondary"
+          label="Stattdessen Foto aufnehmen"
+          onFile={(file) => void scanPhoto(file)}
+        />
         {back}
       </div>
     );
@@ -207,8 +245,12 @@ export function QrScan({ onSave, onCancel }: QrScanProps) {
     return (
       <div className="space-y-4">
         <Notice tone="warn">
-          Der QR-Leser konnte nicht geladen werden. Beim ersten Scan wird eine Internetverbindung
-          benötigt.
+          {state.cause === 'load'
+            ? 'Der QR-Leser konnte nicht geladen werden. Beim ersten Scan wird eine Internetverbindung benötigt.'
+            : 'Beim Lesen des QR-Codes ist ein Fehler aufgetreten.'}
+          {state.detail && (
+            <span className="mt-1 block font-mono text-xs opacity-80">{state.detail}</span>
+          )}
         </Notice>
         <button type="button" className={buttonClass('secondary', 'w-full')} onClick={retry}>
           Erneut versuchen
