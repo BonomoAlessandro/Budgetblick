@@ -58,8 +58,9 @@ export async function restoreBackup(json: unknown): Promise<void> {
 
 /** Löscht alle Daten und legt die Standardkategorien neu an. */
 export async function deleteAllData(): Promise<void> {
-  await db.transaction('rw', TABLES(), async () => {
-    await Promise.all(TABLES().map((t) => t.clear()));
+  // Gemerkte Produkte sind nicht Teil der Sicherung, werden hier aber mitgelöscht.
+  await db.transaction('rw', [...TABLES(), db.products], async () => {
+    await Promise.all([...TABLES(), db.products].map((t) => t.clear()));
     await db.categories.bulkAdd(DEFAULT_CATEGORIES);
   });
 }

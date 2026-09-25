@@ -13,8 +13,8 @@ interface QuickAddProps {
   onSave: (expense: NewExpense, category: Category) => void;
   /** Foto einer Quittung wurde gewählt */
   onScan: (file: File) => void;
-  /** QR-Code einer Rechnung mit der Kamera lesen */
-  onQrScan: () => void;
+  /** Barcode eines Produkts oder QR-Rechnung mit der Kamera lesen */
+  onCodeScan: () => void;
 }
 
 const scanButtonClass =
@@ -42,7 +42,7 @@ function CategoryButton({ category, onClick }: { category: Category; onClick: ()
  * Schnellerfassung: Betrag eintippen, Kategorie antippen – gespeichert.
  * Datum, Händler und Notiz sind optional aufklappbar.
  */
-export function QuickAdd({ onSave, onScan, onQrScan }: QuickAddProps) {
+export function QuickAdd({ onSave, onScan, onCodeScan }: QuickAddProps) {
   const categories = useCategories('variable');
   const recent = useRecentExpenses(USAGE_SAMPLE);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -155,9 +155,9 @@ export function QuickAdd({ onSave, onScan, onQrScan }: QuickAddProps) {
             }}
           />
         </label>
-        <button type="button" className={scanButtonClass} onClick={onQrScan}>
-          <span aria-hidden="true">🔳</span>
-          QR-Rechnung
+        <button type="button" className={scanButtonClass} onClick={onCodeScan}>
+          <span aria-hidden="true">🏷️</span>
+          Barcode scannen
         </button>
       </div>
 

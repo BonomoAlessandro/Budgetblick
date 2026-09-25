@@ -1,4 +1,4 @@
-import type { Category, Expense, Income, RecurringExpense } from '../types';
+import type { Category, Expense, Income, Product, RecurringExpense } from '../types';
 import { db, newId } from './db';
 
 type WithOptionalId<T extends { id: string }> = Omit<T, 'id'> & { id?: string };
@@ -45,6 +45,11 @@ export async function setContractCancelled(id: string, cancelledOn: string | und
     // Zurückgenommene Kündigung: Posten wieder aktivieren.
     await db.recurringExpenses.update(id, { contract, ...(cancelledOn ? {} : { active: true }) });
   });
+}
+
+/** Produkt für den nächsten Scan merken (Name, Preis, Kategorie, Händler). */
+export async function rememberProduct(product: Omit<Product, 'updatedAt'>): Promise<void> {
+  await db.products.put({ ...product, updatedAt: Date.now() });
 }
 
 export async function setSetting<T>(key: string, value: T): Promise<void> {

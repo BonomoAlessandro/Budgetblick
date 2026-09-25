@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { Category, Expense, Income, RecurringExpense, Setting } from '../types';
+import type { Category, Expense, Income, Product, RecurringExpense, Setting } from '../types';
 import { DEFAULT_CATEGORIES } from './defaultCategories';
 
 export class BudgetDB extends Dexie {
@@ -8,6 +8,7 @@ export class BudgetDB extends Dexie {
   recurringExpenses!: EntityTable<RecurringExpense, 'id'>;
   expenses!: EntityTable<Expense, 'id'>;
   settings!: EntityTable<Setting, 'key'>;
+  products!: EntityTable<Product, 'code'>;
 
   constructor(name = 'budgetblick') {
     super(name);
@@ -18,6 +19,8 @@ export class BudgetDB extends Dexie {
       expenses: 'id, date, categoryId',
       settings: 'key',
     });
+    // Gemerkte Produkte für den Barcode-Scan
+    this.version(2).stores({ products: 'code' });
 
     // Wird nur beim allerersten Anlegen der Datenbank ausgeführt.
     this.on('populate', (tx) => {

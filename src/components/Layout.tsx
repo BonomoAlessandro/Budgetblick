@@ -3,7 +3,7 @@ import { Outlet, useSearchParams } from 'react-router-dom';
 import { deleteExpense, saveExpense } from '../db/repo';
 import { formatCHF } from '../lib/money';
 import { BottomSheet } from './BottomSheet';
-import { QrScan } from './QrScan';
+import { CodeScan } from './CodeScan';
 import { QuickAdd } from './QuickAdd';
 import { ReceiptScan } from './ReceiptScan';
 import { TabBar } from './TabBar';
@@ -17,14 +17,14 @@ export function Layout() {
   // Der App-Shortcut startet die App mit ?erfassen: Schnellerfassung direkt öffnen.
   const [quickAddOpen, setQuickAddOpen] = useState(() => searchParams.has(QUICK_ADD_PARAM));
   const [scanFile, setScanFile] = useState<File | null>(null);
-  const [qrScanOpen, setQrScanOpen] = useState(false);
+  const [codeScanOpen, setCodeScanOpen] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const dismissToast = useCallback(() => setToast(null), []);
 
   const closeSheet = useCallback(() => {
     setQuickAddOpen(false);
     setScanFile(null);
-    setQrScanOpen(false);
+    setCodeScanOpen(false);
   }, []);
 
   const showSaved = (text: string, id: string) =>
@@ -51,9 +51,7 @@ export function Layout() {
       <TabBar onQuickAdd={() => setQuickAddOpen(true)} />
       <BottomSheet
         open={quickAddOpen}
-        title={
-          scanFile ? 'Quittung prüfen' : qrScanOpen ? 'QR-Rechnung scannen' : 'Ausgabe erfassen'
-        }
+        title={scanFile ? 'Quittung prüfen' : codeScanOpen ? 'Code scannen' : 'Ausgabe erfassen'}
         onClose={closeSheet}
       >
         {scanFile ? (
@@ -66,9 +64,9 @@ export function Layout() {
               showSaved(`${formatCHF(expense.amount)} gespeichert`, id);
             }}
           />
-        ) : qrScanOpen ? (
-          <QrScan
-            onCancel={() => setQrScanOpen(false)}
+        ) : codeScanOpen ? (
+          <CodeScan
+            onCancel={() => setCodeScanOpen(false)}
             onSave={async (expense) => {
               const id = await saveExpense(expense);
               closeSheet();
@@ -78,7 +76,7 @@ export function Layout() {
         ) : (
           <QuickAdd
             onScan={setScanFile}
-            onQrScan={() => setQrScanOpen(true)}
+            onCodeScan={() => setCodeScanOpen(true)}
             onSave={async (expense, category) => {
               const id = await saveExpense(expense);
               closeSheet();

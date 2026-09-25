@@ -1,25 +1,45 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useCategories } from '../db/hooks';
-import { classifyQr, type QrBill, type QrContent } from '../lib/qrBill';
-import { loadQrReader, readQr } from '../lib/qrReader';
+import { db } from '../db/db';
+import { SETTING_PRODUCT_LOOKUP, useCategories } from '../db/hooks';
+import { rememberProduct } from '../db/repo';
+import { isProductFormat, loadCodeReader, readCode, type ScannedCode } from '../lib/codeReader';
+import { lookupProduct } from '../lib/productLookup';
+import { classifyQr, type QrBill } from '../lib/qrBill';
 import { KNOWN_MERCHANTS } from '../lib/receiptParser';
-import type { Expense } from '../types';
+import type { Expense, Product } from '../types';
 import { ExpenseForm, type ExpenseDraft } from './ExpenseForm';
 import { buttonClass } from './styles';
 
-interface QrScanProps {
+interface CodeScanProps {
   onSave: (expense: ExpenseDraft) => void;
   /** Zurück zur Schnellerfassung */
   onCancel: () => void;
 }
 
+/** Woher die Angaben zu einem gescannten Produkt stammen */
+type ProductOrigin = 'saved' | 'lookup' | 'unknown' | 'offline';
+
+interface ScannedProduct {
+  code: string;
+  origin: ProductOrigin;
+  name?: string;
+  lastPrice?: number;
+  categoryId?: string;
+  merchant?: string;
+}
+
 type ScanState =
   | { phase: 'camera' }
-  /** Keine Kamera oder kein Zugriff: QR-Code per Foto einlesen */
+  /** Keine Kamera oder kein Zugriff: Code per Foto einlesen */
   | { phase: 'photo'; reason: string }
   /** Leser nicht ladbar oder Lesen scheitert wiederholt */
   | { phase: 'failed'; cause: 'load' | 'read'; detail?: string }
-  | { phase: 'result'; content: QrContent };
+  /** Produktname wird nachgeschlagen */
+  | { phase: 'lookup'; code: string }
+  | { phase: 'product'; product: ScannedProduct }
+  | { phase: 'bill'; bill: QrBill }
+  /** QR-Code ohne Rechnung */
+  | { phase: 'other'; url?: string };
 
 /** Pause zwischen zwei Leseversuchen im Kamerabild */
 const SCAN_INTERVAL_MS = 200;
@@ -28,6 +48,27 @@ const MAX_READ_ERRORS = 10;
 
 function errorText(error: unknown): string {
   return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+}
+
+function fromSaved(saved: Product): ScannedProduct {
+  const { code, name, lastPrice, categoryId, merchant } = saved;
+  return { code, origin: 'saved', name, lastPrice, categoryId, merchant };
+}
+
+/** Gemerkte Angaben zuerst, sonst (falls erlaubt) Open Food Facts. */
+async function resolveProduct(code: string, onLookup: () => void): Promise<ScannedProduct> {
+  const saved = await db.products.get(code);
+  if (saved) return fromSaved(saved);
+  const setting = await db.settings.get(SETTING_PRODUCT_LOOKUP);
+  if (setting?.value === false) return { code, origin: 'unknown' };
+  onLookup();
+  try {
+    const info = await lookupProduct(code);
+    return info ? { code, origin: 'lookup', ...info } : { code, origin: 'unknown' };
+  } catch (error) {
+    console.error('Produktsuche fehlgeschlagen', error);
+    return { code, origin: 'offline' };
+  }
 }
 
 function billToInitial(bill: QrBill): Partial<Expense> {
@@ -51,6 +92,22 @@ function describeBill(bill: QrBill): string {
   return `QR-Rechnung${from} erkannt. Bitte prüfen und bei Bedarf korrigieren.`;
 }
 
+function describeProduct(product: ScannedProduct): string {
+  const later = 'Beim nächsten Scan sind die Angaben vorausgefüllt.';
+  switch (product.origin) {
+    case 'saved':
+      return product.lastPrice !== undefined
+        ? `${product.name ?? `Artikel ${product.code}`}: Preis vom letzten Kauf übernommen. Bitte prüfen.`
+        : `${product.name ?? `Artikel ${product.code}`} erkannt. Bitte den Preis eingeben.`;
+    case 'lookup':
+      return `${product.name} (Open Food Facts). Bitte den Preis eingeben. ${later}`;
+    case 'unknown':
+      return `Artikel ${product.code} ist nicht bekannt. Bitte Preis und Produktname (Notiz) eingeben. ${later}`;
+    case 'offline':
+      return `Der Produktname konnte nicht nachgeschlagen werden (offline?). Bitte Preis und Produktname (Notiz) eingeben. ${later}`;
+  }
+}
+
 function Notice({ tone, children }: { tone: 'info' | 'warn'; children: ReactNode }) {
   return (
     <p
@@ -68,7 +125,7 @@ function Notice({ tone, children }: { tone: 'info' | 'warn'; children: ReactNode
 
 function PhotoInput({
   onFile,
-  label = 'Foto des QR-Codes wählen',
+  label = 'Foto des Codes wählen',
   variant = 'primary',
 }: {
   onFile: (file: File) => void;
@@ -93,8 +150,11 @@ function PhotoInput({
   );
 }
 
-/** QR-Code mit der Kamera lesen; eine Swiss QR-Rechnung füllt das Formular vor. */
-export function QrScan({ onSave, onCancel }: QrScanProps) {
+/**
+ * Barcode eines Produkts oder QR-Code einer Rechnung mit der Kamera lesen
+ * und das Formular vorausfüllen. Gespeichert wird erst nach Bestätigung.
+ */
+export function CodeScan({ onSave, onCancel }: CodeScanProps) {
   const categories = useCategories('variable');
   const videoRef = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<ScanState>(() =>
@@ -106,6 +166,22 @@ export function QrScan({ onSave, onCancel }: QrScanProps) {
   const [photoError, setPhotoError] = useState<string>();
   /** Auflösung des Kamerabilds, zur Kontrolle unter dem Bild angezeigt */
   const [cameraSize, setCameraSize] = useState<string>();
+  /** Verhindert, dass ein veraltetes Nachschlage-Ergebnis den Zustand überschreibt */
+  const scanId = useRef(0);
+
+  async function handleCode(code: ScannedCode) {
+    const id = ++scanId.current;
+    if (isProductFormat(code.format)) {
+      const product = await resolveProduct(code.text, () => {
+        if (id === scanId.current) setState({ phase: 'lookup', code: code.text });
+      });
+      if (id === scanId.current) setState({ phase: 'product', product });
+      return;
+    }
+    const content = classifyQr(code.text);
+    if (content.kind === 'bill') setState({ phase: 'bill', bill: content.bill });
+    else setState({ phase: 'other', url: content.kind === 'url' ? content.url : undefined });
+  }
 
   useEffect(() => {
     if (state.phase !== 'camera') return;
@@ -115,9 +191,9 @@ export function QrScan({ onSave, onCancel }: QrScanProps) {
 
     (async () => {
       try {
-        await loadQrReader();
+        await loadCodeReader();
       } catch (error) {
-        console.error('QR-Leser konnte nicht geladen werden', error);
+        console.error('Code-Leser konnte nicht geladen werden', error);
         if (!stopped) setState({ phase: 'failed', cause: 'load', detail: errorText(error) });
         return;
       }
@@ -149,15 +225,17 @@ export function QrScan({ onSave, onCancel }: QrScanProps) {
         try {
           if (video.readyState >= 2) {
             setCameraSize(`${video.videoWidth}×${video.videoHeight}`);
-            const value = await readQr(video);
+            const code = await readCode(video);
             errors = 0;
-            if (value && !stopped) {
-              setState({ phase: 'result', content: classifyQr(value) });
+            if (code && !stopped) {
+              // Kamera sofort freigeben, das Nachschlagen kann dauern.
+              stream?.getTracks().forEach((track) => track.stop());
+              void handleCode(code);
               return;
             }
           }
         } catch (error) {
-          console.error('QR-Code lesen fehlgeschlagen', error);
+          console.error('Code lesen fehlgeschlagen', error);
           errors += 1;
           if (errors >= MAX_READ_ERRORS) {
             if (!stopped) setState({ phase: 'failed', cause: 'read', detail: errorText(error) });
@@ -179,19 +257,22 @@ export function QrScan({ onSave, onCancel }: QrScanProps) {
   async function scanPhoto(file: File) {
     setPhotoError(undefined);
     try {
-      const value = await readQr(file);
-      if (value) setState({ phase: 'result', content: classifyQr(value) });
+      const code = await readCode(file);
+      if (code) await handleCode(code);
       else
         setPhotoError(
-          'Auf dem Foto wurde kein QR-Code gefunden. Bitte näher und scharf fotografieren.',
+          'Auf dem Foto wurde kein Code gefunden. Bitte näher und scharf fotografieren.',
         );
     } catch (error) {
-      console.error('QR-Code lesen fehlgeschlagen', error);
+      console.error('Code lesen fehlgeschlagen', error);
       setState({ phase: 'failed', cause: 'read', detail: errorText(error) });
     }
   }
 
-  const retry = () => setState({ phase: 'camera' });
+  const retry = () => {
+    scanId.current += 1;
+    setState({ phase: 'camera' });
+  };
   const back = (
     <button type="button" className={buttonClass('ghost', 'w-full')} onClick={onCancel}>
       Manuell erfassen
@@ -211,15 +292,15 @@ export function QrScan({ onSave, onCancel }: QrScanProps) {
           />
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-[15%] rounded-2xl border-4 border-white/80"
+            className="pointer-events-none absolute inset-x-[10%] inset-y-[22%] rounded-2xl border-4 border-white/80"
           />
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Halte den QR-Code in den Rahmen, mit etwa 15–20 cm Abstand, damit die Kamera scharf
-          stellt. Die Erkennung läuft vollständig auf deinem Gerät.
+          Halte den Barcode eines Produkts oder den QR-Code einer Rechnung in den Rahmen, mit etwa
+          15–20 cm Abstand, damit die Kamera scharf stellt.
         </p>
         <p role="status" className="text-xs text-slate-400 dark:text-slate-500">
-          {cameraSize ? `Sucht QR-Code … (Kamera ${cameraSize})` : 'Kamera wird gestartet …'}
+          {cameraSize ? `Sucht Code … (Kamera ${cameraSize})` : 'Kamera wird gestartet …'}
         </p>
         {photoError && <Notice tone="warn">{photoError}</Notice>}
         <PhotoInput
@@ -246,8 +327,8 @@ export function QrScan({ onSave, onCancel }: QrScanProps) {
       <div className="space-y-4">
         <Notice tone="warn">
           {state.cause === 'load'
-            ? 'Der QR-Leser konnte nicht geladen werden. Beim ersten Scan wird eine Internetverbindung benötigt.'
-            : 'Beim Lesen des QR-Codes ist ein Fehler aufgetreten.'}
+            ? 'Der Code-Leser konnte nicht geladen werden. Beim ersten Scan wird eine Internetverbindung benötigt.'
+            : 'Beim Lesen des Codes ist ein Fehler aufgetreten.'}
           {state.detail && (
             <span className="mt-1 block font-mono text-xs opacity-80">{state.detail}</span>
           )}
@@ -259,16 +340,31 @@ export function QrScan({ onSave, onCancel }: QrScanProps) {
       </div>
     );
 
-  const { content } = state;
-  if (content.kind !== 'bill')
+  if (state.phase === 'lookup')
+    return (
+      <div className="space-y-4 py-4" role="status" aria-live="polite">
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="size-6 animate-spin rounded-full border-4 border-slate-200 border-t-brand-600 dark:border-slate-700 dark:border-t-brand-500"
+          />
+          <span className="font-medium">Produkt wird nachgeschlagen …</span>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Artikel {state.code} · Open Food Facts
+        </p>
+      </div>
+    );
+
+  if (state.phase === 'other')
     return (
       <div className="space-y-4">
         <Notice tone="warn">
-          {content.kind === 'url' ? (
+          {state.url ? (
             <>
               Dieser QR-Code enthält keine Rechnung, sondern einen Link:{' '}
-              <a href={content.url} target="_blank" rel="noopener noreferrer" className="underline">
-                {content.url}
+              <a href={state.url} target="_blank" rel="noopener noreferrer" className="underline">
+                {state.url}
               </a>
             </>
           ) : (
@@ -276,31 +372,66 @@ export function QrScan({ onSave, onCancel }: QrScanProps) {
           )}
         </Notice>
         <button type="button" className={buttonClass('secondary', 'w-full')} onClick={retry}>
-          Anderen QR-Code scannen
+          Anderen Code scannen
         </button>
         {back}
       </div>
     );
 
   if (!categories) return null;
+
+  const discard = (
+    <button type="button" className={buttonClass('ghost', 'w-full')} onClick={onCancel}>
+      Verwerfen
+    </button>
+  );
+
+  if (state.phase === 'bill')
+    return (
+      <div className="space-y-4">
+        <Notice
+          tone={state.bill.currency === 'CHF' && state.bill.amount !== undefined ? 'info' : 'warn'}
+        >
+          {describeBill(state.bill)}
+        </Notice>
+        <ExpenseForm
+          initial={billToInitial(state.bill)}
+          categories={categories}
+          onSubmit={onSave}
+          submitLabel="Ausgabe speichern"
+        />
+        {discard}
+      </div>
+    );
+
+  const { product } = state;
   return (
     <div className="space-y-4">
-      <Notice
-        tone={
-          content.bill.currency === 'CHF' && content.bill.amount !== undefined ? 'info' : 'warn'
-        }
-      >
-        {describeBill(content.bill)}
+      <Notice tone={product.origin === 'saved' || product.origin === 'lookup' ? 'info' : 'warn'}>
+        {describeProduct(product)}
       </Notice>
       <ExpenseForm
-        initial={billToInitial(content.bill)}
+        initial={{
+          amount: product.lastPrice,
+          note: product.name,
+          categoryId: product.categoryId,
+          merchant: product.merchant,
+          source: 'scan',
+        }}
         categories={categories}
-        onSubmit={onSave}
+        onSubmit={async (expense) => {
+          await rememberProduct({
+            code: product.code,
+            name: expense.note?.trim() || product.name,
+            lastPrice: expense.amount,
+            categoryId: expense.categoryId,
+            merchant: expense.merchant,
+          });
+          onSave(expense);
+        }}
         submitLabel="Ausgabe speichern"
       />
-      <button type="button" className={buttonClass('ghost', 'w-full')} onClick={onCancel}>
-        Verwerfen
-      </button>
+      {discard}
     </div>
   );
 }

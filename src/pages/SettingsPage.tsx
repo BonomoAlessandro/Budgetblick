@@ -9,7 +9,12 @@ import { Icon } from '../components/Icon';
 import { PageHeader } from '../components/PageHeader';
 import { buttonClass, inputClass } from '../components/styles';
 import { createBackup, deleteAllData, restoreBackup } from '../db/backup';
-import { SETTING_REMINDER_LEAD_DAYS, useCategories, useSetting } from '../db/hooks';
+import {
+  SETTING_PRODUCT_LOOKUP,
+  SETTING_REMINDER_LEAD_DAYS,
+  useCategories,
+  useSetting,
+} from '../db/hooks';
 import { categoryUsageCount, deleteCategory, saveCategory, setSetting } from '../db/repo';
 import { BackupError, backupFileName, parseBackup } from '../lib/backup';
 import { DEFAULT_REMINDER_LEAD_DAYS } from '../lib/contracts';
@@ -82,6 +87,7 @@ export function SettingsPage() {
   const fixed = useCategories('fixed') ?? [];
   const variable = useCategories('variable') ?? [];
   const leadDays = useSetting(SETTING_REMINDER_LEAD_DAYS, DEFAULT_REMINDER_LEAD_DAYS);
+  const productLookup = useSetting(SETTING_PRODUCT_LOOKUP, true);
 
   const [theme, setThemeState] = useState<Theme>(getTheme);
   const [leadInput, setLeadInput] = useState<string | null>(null);
@@ -218,6 +224,22 @@ export function SettingsPage() {
               </button>
             )}
           </form>
+        </Card>
+
+        <Card title="Barcode-Scan">
+          <label className="flex min-h-11 items-center gap-3">
+            <input
+              type="checkbox"
+              className="size-5 shrink-0 accent-brand-700"
+              checked={productLookup}
+              onChange={(e) => void setSetting(SETTING_PRODUCT_LOOKUP, e.target.checked)}
+            />
+            <span>Produktnamen bei Open Food Facts nachschlagen</span>
+          </label>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+            Nur beim ersten Scan eines Produkts wird die Artikelnummer an Open Food Facts gesendet,
+            sonst nichts. Bekannte Produkte erkennt die App lokal, auch offline.
+          </p>
         </Card>
 
         {(

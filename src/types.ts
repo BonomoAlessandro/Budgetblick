@@ -59,6 +59,18 @@ export interface RecurringExpense {
 
 export type ExpenseSource = 'manual' | 'scan';
 
+/** Per Barcode gescanntes Produkt, gemerkt für den nächsten Scan */
+export interface Product {
+  /** Artikelnummer (EAN/UPC) */
+  code: string;
+  name?: string;
+  /** Rappen, Preis beim letzten Kauf */
+  lastPrice?: number;
+  categoryId?: string;
+  merchant?: string;
+  updatedAt: number;
+}
+
 export interface Expense {
   id: string;
   /** Rappen */

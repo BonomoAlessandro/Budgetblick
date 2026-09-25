@@ -60,3 +60,5 @@ export function useSetting<T>(key: string, fallback: T): T {
 }
 
 export const SETTING_REMINDER_LEAD_DAYS = 'reminderLeadDays';
+/** Produktnamen unbekannter Barcodes bei Open Food Facts nachschlagen (Standard: an) */
+export const SETTING_PRODUCT_LOOKUP = 'productLookup';
