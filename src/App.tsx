@@ -1,4 +1,7 @@
+import { useEffect } from 'react';
 import { Route, Routes } from 'react-router-dom';
+import { deactivateEndedContracts } from './db/maintenance';
+import { todayISO } from './lib/date';
 import { Layout } from './components/Layout';
 import { DashboardPage } from './pages/DashboardPage';
 import { FixedCostsPage } from './pages/FixedCostsPage';
@@ -7,6 +10,11 @@ import { ExpensesPage } from './pages/ExpensesPage';
 import { SettingsPage } from './pages/SettingsPage';
 
 export default function App() {
+  useEffect(() => {
+    // Gekündigte Verträge nach Vertragsende automatisch aus den Fixkosten nehmen.
+    void deactivateEndedContracts(todayISO());
+  }, []);
+
   return (
     <Routes>
       <Route element={<Layout />}>

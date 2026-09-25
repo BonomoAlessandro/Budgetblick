@@ -52,3 +52,11 @@ export function useExpensesBetween(fromISO: string, toISO: string) {
 export function useRecentExpenses(limit: number) {
   return useLiveQuery(() => db.expenses.orderBy('date').reverse().limit(limit).toArray(), [limit]);
 }
+
+/** Einstellung aus der Datenbank, mit Standardwert solange nichts gespeichert ist. */
+export function useSetting<T>(key: string, fallback: T): T {
+  const setting = useLiveQuery(() => db.settings.get(key), [key]);
+  return (setting?.value as T | undefined) ?? fallback;
+}
+
+export const SETTING_REMINDER_LEAD_DAYS = 'reminderLeadDays';

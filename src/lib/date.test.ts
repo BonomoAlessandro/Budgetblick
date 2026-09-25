@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatDate,
   formatDateLong,
+  formatDaysFromToday,
   formatMonth,
   formatRelativeDay,
   fromISODate,
@@ -41,5 +42,18 @@ describe('formatRelativeDay', () => {
     expect(formatRelativeDay('2026-09-26', '2026-09-25')).toBe('Morgen');
     expect(formatRelativeDay('2026-10-01', '2026-09-30')).toBe('Morgen');
     expect(formatRelativeDay('2026-09-27', '2026-09-25')).toBe('27.09.2026');
+  });
+});
+
+describe('formatDaysFromToday', () => {
+  it.each([
+    ['2026-09-25', 'heute'],
+    ['2026-09-26', 'morgen'],
+    ['2026-09-24', 'gestern'],
+    ['2026-09-30', 'in 5 Tagen'],
+    ['2026-09-20', 'vor 5 Tagen'],
+    ['2027-09-25', 'in 365 Tagen'],
+  ])('%s → %s', (iso, expected) => {
+    expect(formatDaysFromToday(iso, '2026-09-25')).toBe(expected);
   });
 });

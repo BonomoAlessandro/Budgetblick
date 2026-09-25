@@ -138,6 +138,29 @@ describe('upcomingPayments', () => {
     expect(result[0]?.date).toBe('2026-09-25');
   });
 
+  it('bucht gekündigte Verträge nur bis zum Vertragsende ab', () => {
+    const result = upcomingPayments(
+      [
+        recurring({
+          name: 'Fitness',
+          nextDueDate: '2026-10-15',
+          contract: {
+            startDate: '2025-12-01',
+            minTermMonths: 12,
+            renewalTermMonths: 12,
+            noticePeriod: { value: 1, unit: 'months' },
+            reminderLeadDays: 14,
+            cancelledOn: '2026-09-01',
+          },
+        }),
+      ],
+      today,
+      5,
+    );
+    // Vertragsende 30.11.2026
+    expect(result.map((p) => p.date)).toEqual(['2026-10-15', '2026-11-15']);
+  });
+
   it('liefert eine leere Liste ohne aktive Fixkosten', () => {
     expect(upcomingPayments([], today)).toEqual([]);
   });

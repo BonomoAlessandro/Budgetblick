@@ -1,6 +1,7 @@
 import { endOfMonth, startOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { BudgetCard } from '../components/BudgetCard';
+import { DeadlinesCard } from '../components/DeadlinesCard';
 import { Icon } from '../components/Icon';
 import { PageHeader } from '../components/PageHeader';
 import { RecentExpensesCard } from '../components/RecentExpensesCard';
@@ -13,6 +14,7 @@ import {
   useRecurringExpenses,
 } from '../db/hooks';
 import { computeBudget, upcomingPayments } from '../lib/budget';
+import { contractTimeline, needsAttention } from '../lib/contracts';
 import { formatMonth, toISODate, todayISO } from '../lib/date';
 import { latestExpenses } from '../lib/expenses';
 
@@ -27,6 +29,9 @@ export function DashboardPage() {
   const categoryMap = useCategoryMap();
 
   const loaded = incomes && recurring && expenses && recent;
+  const deadlines = recurring
+    ? contractTimeline(recurring, today).filter((e) => e.expense.active && needsAttention(e.state))
+    : [];
 
   return (
     <>
@@ -48,6 +53,7 @@ export function DashboardPage() {
             summary={computeBudget({ incomes, recurring, expenses, month: now })}
             monthLabel={formatMonth(now)}
           />
+          {deadlines.length > 0 && <DeadlinesCard entries={deadlines} today={today} />}
           <UpcomingCard
             payments={upcomingPayments(recurring, today, 5)}
             categoryMap={categoryMap}

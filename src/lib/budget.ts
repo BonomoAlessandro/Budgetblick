@@ -1,4 +1,5 @@
 import type { Expense, Income, Interval, RecurringExpense } from '../types';
+import { cancelledUntil } from './contracts';
 import { toISODate } from './date';
 import { monthlyEquivalent, nextOccurrence, nextOccurrences, yearlyEquivalent } from './interval';
 
@@ -64,7 +65,10 @@ export interface UpcomingPayment {
   date: string;
 }
 
-/** Die nächsten `limit` Abbuchungen aktiver Fixkosten ab `fromISO` (inklusive). */
+/**
+ * Die nächsten `limit` Abbuchungen aktiver Fixkosten ab `fromISO` (inklusive).
+ * Bei gekündigten Verträgen enden die Abbuchungen mit dem Vertragsende.
+ */
 export function upcomingPayments(
   recurring: RecurringExpense[],
   fromISO: string,
@@ -72,12 +76,12 @@ export function upcomingPayments(
 ): UpcomingPayment[] {
   return recurring
     .filter((r) => r.active)
-    .flatMap((expense) =>
-      nextOccurrences(expense.nextDueDate, expense.interval, fromISO, limit).map((date) => ({
-        expense,
-        date,
-      })),
-    )
+    .flatMap((expense) => {
+      const until = cancelledUntil(expense);
+      return nextOccurrences(expense.nextDueDate, expense.interval, fromISO, limit)
+        .filter((date) => until === undefined || date <= until)
+        .map((date) => ({ expense, date }));
+    })
     .sort(
       (a, b) => a.date.localeCompare(b.date) || a.expense.name.localeCompare(b.expense.name, 'de'),
     )

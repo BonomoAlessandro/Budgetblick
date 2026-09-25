@@ -1,4 +1,4 @@
-import { addDays, format, isValid, parseISO } from 'date-fns';
+import { addDays, differenceInCalendarDays, format, isValid, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 /** Date → ISO-Datum `YYYY-MM-DD` (lokale Zeitzone). */
@@ -27,6 +27,15 @@ export function formatRelativeDay(iso: string, todayIso: string): string {
   if (iso === todayIso) return 'Heute';
   if (iso === toISODate(addDays(parseISO(todayIso), 1))) return 'Morgen';
   return formatDate(iso);
+}
+
+/** Relative Angabe zu heute: „heute", „morgen", „in 5 Tagen", „gestern", „vor 3 Tagen". */
+export function formatDaysFromToday(iso: string, todayIso: string): string {
+  const days = differenceInCalendarDays(parseISO(iso), parseISO(todayIso));
+  if (days === 0) return 'heute';
+  if (days === 1) return 'morgen';
+  if (days === -1) return 'gestern';
+  return days > 0 ? `in ${days} Tagen` : `vor ${-days} Tagen`;
 }
 
 /** Formatiert ein ISO-Datum lang, z. B. "Freitag, 25. September". */

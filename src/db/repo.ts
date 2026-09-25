@@ -34,3 +34,19 @@ export async function saveExpense(expense: WithOptionalId<Expense>): Promise<str
 export async function deleteExpense(id: string): Promise<void> {
   await db.expenses.delete(id);
 }
+
+/** Setzt oder entfernt (`undefined`) das Kündigungsdatum eines Vertrags. */
+export async function setContractCancelled(id: string, cancelledOn: string | undefined) {
+  await db.transaction('rw', db.recurringExpenses, async () => {
+    const item = await db.recurringExpenses.get(id);
+    if (!item?.contract) return;
+    const contract = { ...item.contract, cancelledOn };
+    if (!cancelledOn) delete contract.cancelledOn;
+    // Zurückgenommene Kündigung: Posten wieder aktivieren.
+    await db.recurringExpenses.update(id, { contract, ...(cancelledOn ? {} : { active: true }) });
+  });
+}
+
+export async function setSetting<T>(key: string, value: T): Promise<void> {
+  await db.settings.put({ key, value });
+}

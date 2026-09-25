@@ -1,8 +1,15 @@
 import { useState, type FormEvent } from 'react';
+import {
+  parseContractDraft,
+  toContractDraft,
+  type ContractDraftErrors,
+} from '../lib/contractDraft';
+import { DEFAULT_REMINDER_LEAD_DAYS } from '../lib/contracts';
 import { todayISO } from '../lib/date';
 import { INTERVALS, INTERVAL_LABELS } from '../lib/interval';
 import { parseAmount, toInputValue } from '../lib/money';
 import type { Category, Interval, RecurringExpense } from '../types';
+import { ContractFields } from './ContractFields';
 import { ConfirmDeleteButton, Field } from './fields';
 import { buttonClass, inputClass } from './styles';
 
@@ -13,6 +20,8 @@ interface RecurringExpenseFormProps {
   categories: Category[];
   onSubmit: (expense: RecurringExpenseDraft) => void;
   onDelete?: () => void;
+  /** Standard-Vorlaufzeit für Erinnerungen bei neuen Verträgen */
+  defaultReminderLeadDays?: number;
 }
 
 interface Errors {
@@ -27,6 +36,7 @@ export function RecurringExpenseForm({
   categories,
   onSubmit,
   onDelete,
+  defaultReminderLeadDays = DEFAULT_REMINDER_LEAD_DAYS,
 }: RecurringExpenseFormProps) {
   const [name, setName] = useState(initial?.name ?? '');
   const [amount, setAmount] = useState(initial ? toInputValue(initial.amount) : '');
@@ -36,6 +46,11 @@ export function RecurringExpenseForm({
   const [active, setActive] = useState(initial?.active ?? true);
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [errors, setErrors] = useState<Errors>({});
+  const [hasContract, setHasContract] = useState(initial?.contract !== undefined);
+  const [contractDraft, setContractDraft] = useState(() =>
+    toContractDraft(initial?.contract, todayISO(), defaultReminderLeadDays),
+  );
+  const [contractErrors, setContractErrors] = useState<ContractDraftErrors>({});
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -48,8 +63,11 @@ export function RecurringExpenseForm({
         : 'Bitte ein gültiges Datum wählen.',
       categoryId: categoryId ? undefined : 'Bitte eine Kategorie wählen.',
     };
+    const parsedContract = hasContract ? parseContractDraft(contractDraft) : undefined;
     setErrors(next);
+    setContractErrors(parsedContract?.errors ?? {});
     if (Object.values(next).some(Boolean) || parsed === null) return;
+    if (parsedContract && !parsedContract.contract) return;
     onSubmit({
       ...initial,
       id: initial?.id,
@@ -60,6 +78,7 @@ export function RecurringExpenseForm({
       categoryId,
       active,
       notes: notes.trim() || undefined,
+      contract: parsedContract?.contract,
     });
   }
 
@@ -147,6 +166,28 @@ export function RecurringExpenseForm({
           />
         )}
       </Field>
+      <fieldset className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+        <legend className="sr-only">Vertragsdetails</legend>
+        <label className="flex min-h-11 items-center gap-3 font-medium">
+          <input
+            type="checkbox"
+            className="size-5 accent-brand-700"
+            checked={hasContract}
+            aria-expanded={hasContract}
+            onChange={(e) => setHasContract(e.target.checked)}
+          />
+          <span>Vertragsdetails (Laufzeit und Kündigungsfrist)</span>
+        </label>
+        {hasContract && (
+          <div className="pt-2">
+            <ContractFields
+              draft={contractDraft}
+              errors={contractErrors}
+              onChange={setContractDraft}
+            />
+          </div>
+        )}
+      </fieldset>
       <label className="flex min-h-11 items-center gap-3">
         <input
           type="checkbox"

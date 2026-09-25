@@ -6,7 +6,14 @@ import { Icon } from '../components/Icon';
 import { IncomeForm } from '../components/IncomeForm';
 import { PageHeader } from '../components/PageHeader';
 import { RecurringExpenseForm } from '../components/RecurringExpenseForm';
-import { useCategories, useCategoryMap, useIncomes, useRecurringExpenses } from '../db/hooks';
+import {
+  SETTING_REMINDER_LEAD_DAYS,
+  useCategories,
+  useCategoryMap,
+  useIncomes,
+  useRecurringExpenses,
+  useSetting,
+} from '../db/hooks';
 import { deleteIncome, deleteRecurringExpense, saveIncome, saveRecurringExpense } from '../db/repo';
 import {
   RECURRING_SORT_LABELS,
@@ -16,6 +23,7 @@ import {
   sumYearly,
   type RecurringSortKey,
 } from '../lib/budget';
+import { DEFAULT_REMINDER_LEAD_DAYS } from '../lib/contracts';
 import { formatDate, todayISO } from '../lib/date';
 import { INTERVAL_LABELS, monthlyEquivalent } from '../lib/interval';
 import { formatCHF } from '../lib/money';
@@ -38,6 +46,7 @@ export function FixedCostsPage() {
   const recurring = useRecurringExpenses();
   const fixedCategories = useCategories('fixed');
   const categoryMap = useCategoryMap();
+  const reminderLeadDays = useSetting(SETTING_REMINDER_LEAD_DAYS, DEFAULT_REMINDER_LEAD_DAYS);
   const [sortKey, setSortKey] = useState<RecurringSortKey>('amount');
   const [editing, setEditing] = useState<Editing>(null);
 
@@ -198,6 +207,7 @@ export function FixedCostsPage() {
             key={editing.item?.id ?? 'new'}
             initial={editing.item}
             categories={fixedCategories}
+            defaultReminderLeadDays={reminderLeadDays}
             onSubmit={async (draft) => {
               await saveRecurringExpense(draft);
               close();
