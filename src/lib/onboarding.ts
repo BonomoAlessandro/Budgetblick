@@ -16,10 +16,10 @@ export const FIXED_COST_SUGGESTIONS: FixedCostSuggestion[] = [
   { name: 'Krankenkasse Zusatzversicherung', categoryId: 'fix-krankenkasse', interval: 'monthly' },
   {
     name: 'Hausrat- & Haftpflichtversicherung',
-    categoryId: 'fix-versicherungen',
+    categoryId: 'fix-wohnen',
     interval: 'yearly',
   },
-  { name: 'Autoversicherung', categoryId: 'fix-versicherungen', interval: 'yearly' },
+  { name: 'Autoversicherung', categoryId: 'fix-mobilitaet', interval: 'yearly' },
   { name: 'Handy-Abo', categoryId: 'fix-telefon', interval: 'monthly' },
   { name: 'Internet & TV', categoryId: 'fix-telefon', interval: 'monthly' },
   { name: 'Serafe', categoryId: 'fix-serafe', interval: 'yearly', amount: 33500 },

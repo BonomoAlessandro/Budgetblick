@@ -156,7 +156,7 @@ describe('Einstellungen', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Endgültig löschen' }));
     expect(await screen.findByText('Schritt 1 von 3')).toBeInTheDocument();
     expect(await db.incomes.count()).toBe(0);
-    expect(await db.categories.count()).toBe(16);
+    expect(await db.categories.count()).toBe(14);
   });
 });
 

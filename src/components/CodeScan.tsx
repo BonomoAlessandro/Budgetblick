@@ -414,7 +414,10 @@ export function CodeScan({ onSave, onCancel }: CodeScanProps) {
         initial={{
           amount: product.lastPrice,
           note: product.name,
-          categoryId: product.categoryId,
+          // Gemerkte Kategorie kann inzwischen gelöscht sein.
+          categoryId: categories.some((c) => c.id === product.categoryId)
+            ? product.categoryId
+            : undefined,
           merchant: product.merchant,
           source: 'scan',
         }}

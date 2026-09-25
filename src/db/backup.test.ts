@@ -33,7 +33,7 @@ describe('Sicherung', () => {
     const backup = JSON.parse(JSON.stringify(await createBackup(new Date('2026-09-25T10:00:00Z'))));
     expect(backup.format).toBe(BACKUP_FORMAT);
     expect(backup.exportedAt).toBe('2026-09-25T10:00:00.000Z');
-    expect(backup.data.categories).toHaveLength(16);
+    expect(backup.data.categories).toHaveLength(14);
 
     await deleteAllData();
     expect(await db.incomes.count()).toBe(0);
@@ -46,7 +46,7 @@ describe('Sicherung', () => {
       key: 'reminderLeadDays',
       value: 21,
     });
-    expect(await db.categories.count()).toBe(16);
+    expect(await db.categories.count()).toBe(14);
   });
 
   it('lässt die Daten bei einer ungültigen Datei unverändert', async () => {
@@ -75,7 +75,7 @@ describe('deleteAllData', () => {
     expect(await db.recurringExpenses.count()).toBe(0);
     expect(await db.expenses.count()).toBe(0);
     expect(await db.settings.count()).toBe(0);
-    expect(await db.categories.count()).toBe(16);
+    expect(await db.categories.count()).toBe(14);
     expect(await db.categories.get('eigene')).toBeUndefined();
   });
 });

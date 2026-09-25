@@ -62,14 +62,14 @@ describe('Schnellerfassung', () => {
     await user.type(date, '2026-09-01');
     await user.type(within(dialog).getByLabelText('Händler'), 'Blumen Meier');
     await user.click(within(dialog).getByRole('button', { name: /Weitere Kategorien/ }));
-    await user.click(within(dialog).getByRole('button', { name: /Geschenke/ }));
+    await user.click(within(dialog).getByRole('button', { name: /Sonstiges/ }));
 
     await waitFor(async () => expect(await db.expenses.count()).toBe(1));
     expect((await db.expenses.toArray())[0]).toMatchObject({
       amount: 3000,
       date: '2026-09-01',
       merchant: 'Blumen Meier',
-      categoryId: 'var-geschenke',
+      categoryId: 'var-sonstiges',
     });
   });
 
@@ -95,7 +95,7 @@ describe('Schnellerfassung', () => {
         id: `g${i}`,
         amount: 100,
         date: todayISO(),
-        categoryId: 'var-geschenke',
+        categoryId: 'var-sonstiges',
         source: 'manual' as const,
       })),
     );
@@ -104,7 +104,7 @@ describe('Schnellerfassung', () => {
     await user.click(screen.getByRole('button', { name: 'Ausgabe erfassen' }));
     const group = await screen.findByRole('group', { name: 'Kategorie wählen und speichern' });
     await waitFor(() =>
-      expect(within(group).getAllByRole('button')[0]).toHaveTextContent('Geschenke'),
+      expect(within(group).getAllByRole('button')[0]).toHaveTextContent('Sonstiges'),
     );
   });
 });

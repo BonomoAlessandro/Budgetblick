@@ -26,15 +26,15 @@ describe('topCategories', () => {
 
   it('sortiert nach Häufigkeit, nicht nach Betrag', () => {
     const list = [
-      exp('var-geschenke', 100),
-      exp('var-geschenke', 100),
-      exp('var-geschenke', 100),
+      exp('var-sonstiges', 100),
+      exp('var-sonstiges', 100),
+      exp('var-sonstiges', 100),
       exp('var-transport', 100),
       exp('var-transport', 100),
       exp('var-shopping', 99999),
     ];
     const ids = topCategories(list, variable, 6).map((c) => c.id);
-    expect(ids.slice(0, 3)).toEqual(['var-geschenke', 'var-transport', 'var-shopping']);
+    expect(ids.slice(0, 3)).toEqual(['var-sonstiges', 'var-transport', 'var-shopping']);
     expect(ids.slice(3)).toEqual(['var-lebensmittel', 'var-restaurant', 'var-freizeit']);
   });
 
